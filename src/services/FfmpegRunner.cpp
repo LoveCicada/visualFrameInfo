@@ -91,6 +91,12 @@ QString sanitizeMetricField(const QString &text)
     return sanitized;
 }
 
+QString ffmpegThreadOptionValue()
+{
+    // Let ffmpeg/ffprobe auto-select a suitable thread count per codec/backend.
+    return "0";
+}
+
 void appendBenchmarkMetric(const QString &backend,
                            const QString &videoPath,
                            const QString &analysisLogPath,
@@ -311,6 +317,7 @@ bool FfmpegRunner::runShowInfo(const QString &videoPath, QString &logPath, QStri
 
         const QStringList ffprobeArgs = QStringList()
                                         << "-v" << "error"
+                                        << "-threads" << ffmpegThreadOptionValue()
                                         << "-select_streams" << "v:0"
                                         << "-show_streams"
                                         << "-show_frames"
@@ -339,12 +346,13 @@ bool FfmpegRunner::runShowInfo(const QString &videoPath, QString &logPath, QStri
     const QStringList ffmpegArgs = QStringList()
                                    << "-hide_banner"
                                    << "-nostats"
+                                   << "-threads" << ffmpegThreadOptionValue()
                                    << "-i" << videoPath
                                    << "-map" << "0:v:0"
                                    << "-an"
                                    << "-sn"
                                    << "-dn"
-                                   << "-vf" << "showinfo"
+                                   << "-vf" << "showinfo=checksum=0"
                                    << "-f" << "null" << "-";
 
     if (runAndCapture(ffmpegPath, ffmpegArgs, true, ffmpegError)) {
@@ -465,6 +473,7 @@ bool FfmpegRunner::runBenchmarkComparison(const QString &videoPath,
     } else {
         const QStringList ffprobeArgs = QStringList()
                                         << "-v" << "error"
+                                        << "-threads" << ffmpegThreadOptionValue()
                                         << "-select_streams" << "v:0"
                                         << "-show_streams"
                                         << "-show_frames"
@@ -483,12 +492,13 @@ bool FfmpegRunner::runBenchmarkComparison(const QString &videoPath,
         const QStringList ffmpegArgs = QStringList()
                                        << "-hide_banner"
                                        << "-nostats"
+                                       << "-threads" << ffmpegThreadOptionValue()
                                        << "-i" << videoPath
                                        << "-map" << "0:v:0"
                                        << "-an"
                                        << "-sn"
                                        << "-dn"
-                                       << "-vf" << "showinfo"
+                                       << "-vf" << "showinfo=checksum=0"
                                        << "-f" << "null" << "-";
         ffmpegResult = runCommand(ffmpegPath, ffmpegArgs, ffmpegResult.logPath);
     }

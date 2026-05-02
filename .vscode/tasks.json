@@ -131,6 +131,34 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Commit Release Workflow Updates",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"commit",
+				"-m",
+				"docs: add v0.1.1 release upgrade guide and dry-run checks",
+				"-m",
+				"Document v0.1.1 version bump workflow in README and release guide.",
+				"-m",
+				"Add reusable dry-run release tasks and enhance publish script with -DryRun mode and gh path fallback."
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Push Release Workflow Updates",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"push",
+				"origin",
+				"master"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

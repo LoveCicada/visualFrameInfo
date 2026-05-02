@@ -51,6 +51,68 @@ bool tryBuildFrameFromFfprobe(const QHash<QString, QString> &fields, int frameIn
     return true;
 }
 
+struct FfprobeFrameFields
+{
+    QString pictType;
+    bool keyFrame = false;
+    qint64 pts = 0;
+    double ptsTime = 0.0;
+    qint64 duration = 0;
+    double durationTime = 0.0;
+
+    void clear()
+    {
+        pictType.clear();
+        keyFrame = false;
+        pts = 0;
+        ptsTime = 0.0;
+        duration = 0;
+        durationTime = 0.0;
+    }
+};
+
+void parseFfprobeFrameField(const QString &line, FfprobeFrameFields &fields)
+{
+    if (line.startsWith("pict_type=")) {
+        fields.pictType = line.mid(10).trimmed();
+    } else if (line.startsWith("key_frame=")) {
+        fields.keyFrame = line.mid(10).trimmed() == "1";
+    } else if (line.startsWith("best_effort_timestamp=")) {
+        fields.pts = line.mid(22).trimmed().toLongLong();
+    } else if (line.startsWith("best_effort_timestamp_time=")) {
+        fields.ptsTime = line.mid(27).trimmed().toDouble();
+    } else if (line.startsWith("pkt_duration=")) {
+        fields.duration = line.mid(13).trimmed().toLongLong();
+    } else if (line.startsWith("pkt_duration_time=")) {
+        fields.durationTime = line.mid(18).trimmed().toDouble();
+    }
+}
+
+bool tryBuildFrameFromFfprobeFast(const FfprobeFrameFields &fields, int frameIndex, FrameInfo &frame)
+{
+    if (fields.pictType.isEmpty()) {
+        return false;
+    }
+
+    const QChar type = fields.pictType.at(0);
+    if (type != QChar('I') && type != QChar('P') && type != QChar('B')) {
+        return false;
+    }
+
+    frame.index = frameIndex;
+    frame.type = type;
+    frame.isKey = fields.keyFrame;
+    frame.pts = fields.pts;
+    frame.ptsTime = fields.ptsTime;
+    frame.duration = fields.duration;
+    frame.durationTime = fields.durationTime;
+    frame.rawLine = QString("ffprobe frame=%1 type=%2 key=%3")
+                        .arg(frame.index)
+                        .arg(frame.type)
+                        .arg(frame.isKey ? "1" : "0");
+    return true;
+}
+
 bool parseFpsFromFraction(const QString &fractionText, double &fpsValue, QString &fpsText)
 {
     const QStringList parts = fractionText.split('/');
@@ -81,7 +143,7 @@ bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frame
 
     QTextStream stream(&file);
     bool inFrameSection = false;
-    QHash<QString, QString> ffprobeFrameFields;
+    FfprobeFrameFields ffprobeFrameFields;
 
     while (!stream.atEnd()) {
         const QString line = stream.readLine();
@@ -95,7 +157,7 @@ bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frame
         if (line == "[/FRAME]") {
             if (inFrameSection) {
                 FrameInfo frame;
-                if (tryBuildFrameFromFfprobe(ffprobeFrameFields, frames.size(), frame)) {
+                if (tryBuildFrameFromFfprobeFast(ffprobeFrameFields, frames.size(), frame)) {
                     frames.push_back(frame);
                 }
             }
@@ -105,12 +167,7 @@ bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frame
         }
 
         if (inFrameSection) {
-            const int splitPos = line.indexOf('=');
-            if (splitPos > 0) {
-                const QString key = line.left(splitPos).trimmed();
-                const QString value = line.mid(splitPos + 1).trimmed();
-                ffprobeFrameFields.insert(key, value);
-            }
+            parseFfprobeFrameField(line, ffprobeFrameFields);
             continue;
         }
 
