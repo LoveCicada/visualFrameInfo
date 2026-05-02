@@ -148,6 +148,35 @@ bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frame
     while (!stream.atEnd()) {
         const QString line = stream.readLine();
 
+        // CSV format: ffprobe -of csv outputs one line per frame:
+        // frame,{key_frame},{best_effort_timestamp},{best_effort_timestamp_time},{pkt_duration},{pkt_duration_time},{pict_type}
+        if (line.startsWith("frame,")) {
+            const QStringList parts = line.split(',');
+            if (parts.size() >= 7) {
+                const QString typeStr = parts.at(6);
+                if (!typeStr.isEmpty()) {
+                    const QChar type = typeStr.at(0);
+                    if (type == QChar('I') || type == QChar('P') || type == QChar('B')) {
+                        FrameInfo frame;
+                        frame.index = frames.size();
+                        frame.isKey = (parts.at(1) == "1");
+                        frame.type = type;
+                        frame.pts = parts.at(2).toLongLong();
+                        frame.ptsTime = parts.at(3).toDouble();
+                        frame.duration = parts.at(4).toLongLong();
+                        frame.durationTime = parts.at(5).toDouble();
+                        frame.rawLine = QString("ffprobe frame=%1 type=%2 key=%3")
+                                            .arg(frame.index)
+                                            .arg(frame.type)
+                                            .arg(frame.isKey ? "1" : "0");
+                        frames.push_back(frame);
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Default format: ffprobe -of default=noprint_wrappers=0
         if (line == "[FRAME]") {
             inFrameSection = true;
             ffprobeFrameFields.clear();
@@ -265,6 +294,27 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
         while (!stream.atEnd()) {
             const QString line = stream.readLine();
 
+            // CSV format: ffprobe -of csv outputs stream info as one line:
+            // stream,{codec_name},{width},{height},{avg_frame_rate},{r_frame_rate},...
+            if (line.startsWith("stream,")) {
+                const QStringList parts = line.split(',');
+                if (summary.codec.isEmpty() && parts.size() >= 2 && !parts.at(1).isEmpty()) {
+                    summary.codec = parts.at(1).toUpper();
+                }
+                if (summary.resolution.isEmpty() && parts.size() >= 4
+                    && !parts.at(2).isEmpty() && !parts.at(3).isEmpty()) {
+                    summary.resolution = parts.at(2) + "x" + parts.at(3);
+                }
+                if (summary.fpsText.isEmpty() && parts.size() >= 5 && !parts.at(4).isEmpty()) {
+                    parseFpsFromFraction(parts.at(4), summary.fpsValue, summary.fpsText);
+                }
+                if (summary.fpsText.isEmpty() && parts.size() >= 6 && !parts.at(5).isEmpty()) {
+                    parseFpsFromFraction(parts.at(5), summary.fpsValue, summary.fpsText);
+                }
+                continue;
+            }
+
+            // Default format: ffprobe -of default=noprint_wrappers=0
             if (line == "[STREAM]") {
                 inStreamSection = true;
                 ffprobeStreamFields.clear();

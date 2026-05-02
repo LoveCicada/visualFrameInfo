@@ -323,7 +323,7 @@ bool FfmpegRunner::runShowInfo(const QString &videoPath, QString &logPath, QStri
                                         << "-show_frames"
                                         << "-show_entries"
                                         << "stream=codec_name,width,height,avg_frame_rate,r_frame_rate:frame=key_frame,pict_type,best_effort_timestamp,best_effort_timestamp_time,pkt_duration,pkt_duration_time"
-                                        << "-of" << "default=noprint_wrappers=0"
+                                        << "-of" << "csv"
                                         << videoPath;
 
         if (runAndCapture(ffprobePath, ffprobeArgs, false, ffprobeError)) {
