@@ -56,6 +56,12 @@ install/installer/visualFrameInfo_setup_<version>.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1 -Tag 0.1.1
 ```
 
+发布前 dry-run 检查：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1 -Tag 0.1.1 -DryRun
+```
+
 脚本会自动完成以下动作：
 
 1. 检查 `install/installer/visualFrameInfo_setup_<version>.exe` 是否存在
@@ -97,6 +103,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_relea
 5. 打开 GitHub Releases 页面，确认 Tag、正文和安装包附件无误
 
 注意：安装包文件名来自 `CMakeLists.txt` 版本号，因此版本号必须先改，再打包，再发布。
+
+## v0.1.1 升级示例
+
+1. 修改版本号：`CMakeLists.txt` 中改为 `project(visualFrameInfo VERSION 0.1.1 LANGUAGES CXX)`
+2. 提交并推送：
+
+   ```bash
+   git add CMakeLists.txt
+   git commit -m "chore: bump version to 0.1.1"
+   git push origin master
+   ```
+
+3. 执行发布前检查（不改远程状态）：
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1 -Tag 0.1.1 -DryRun
+   ```
+
+4. 运行一键链路发布：
+
+   ```text
+   Tasks: Run Task → Build Package And Publish Release
+   ```
 
 ## ffmpeg 二进制说明
 

@@ -85,6 +85,22 @@
 			"problemMatcher": []
 		},
 		{
+			"label": "Publish GitHub Release (Dry Run)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/publish_github_release.ps1",
+				"-DryRun"
+			],
+			"isBackground": false,
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
 			"label": "Build Package And Publish Release",
 			"dependsOn": [
 				"Build Deploy And Package Installer",
@@ -94,31 +110,27 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Commit And Push Release Docs",
-			"type": "shell",
-			"command": "cmd",
-			"args": [
-				"/c",
-				"git add README.md docs/release.md .vscode/tasks.json scripts/publish_github_release.ps1 && git commit -m \"docs: document reusable release workflow\" -m \"Add a reusable GitHub Release publish script and VS Code tasks.\" -m \"Document the one-line publish command and the short release checklist.\" && git push origin master"
+			"label": "Build Package And Dry Run Publish",
+			"dependsOn": [
+				"Build Deploy And Package Installer",
+				"Publish GitHub Release (Dry Run)"
 			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "build"
+			"dependsOrder": "sequence",
+			"problemMatcher": []
 		},
 		{
-			"label": "Git Add Release Workflow Files",
+			"label": "Stage Release Workflow Updates",
 			"type": "shell",
 			"command": "git",
 			"args": [
 				"add",
+				".vscode/tasks.json",
 				"README.md",
 				"docs/release.md",
-				".vscode/tasks.json",
 				"scripts/publish_github_release.ps1"
 			],
 			"isBackground": false,
-			"problemMatcher": [],
-			"group": "build"
+			"problemMatcher": []
 		}
 	]
 }

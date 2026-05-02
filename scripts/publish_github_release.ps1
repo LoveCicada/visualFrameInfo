@@ -2,7 +2,8 @@ param(
     [string]$Tag = '0.1.0',
     [string]$Repo = 'LoveCicada/visualFrameInfo',
     [string]$AssetPath,
-    [string]$NotesFile
+    [string]$NotesFile,
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +24,7 @@ function Get-GhPath {
     }
 
     $candidates = @(
+        'D:\soft\gh\gh.exe',
         'C:\Program Files\GitHub CLI\gh.exe',
         'C:\Program Files\GitHub CLI\bin\gh.exe',
         'C:\Program Files (x86)\GitHub CLI\gh.exe',
@@ -68,6 +70,34 @@ try {
     & $ghPath auth status
     if ($LASTEXITCODE -ne 0) {
         throw 'GitHub CLI is not authenticated. Run gh auth login first.'
+    }
+
+    if ($DryRun) {
+        git rev-parse --is-inside-work-tree *> $null
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Current directory is not a Git repository.'
+        }
+
+        $originUrl = git remote get-url origin 2>$null
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($originUrl)) {
+            throw 'Git remote origin is not configured.'
+        }
+
+        git rev-parse -q --verify "refs/tags/$Tag" *> $null
+        $tagExists = ($LASTEXITCODE -eq 0)
+
+        & $ghPath release view $Tag --repo $Repo *> $null
+        $releaseExists = ($LASTEXITCODE -eq 0)
+
+        Write-Host 'Dry run check passed.'
+        Write-Host "Repo: $Repo"
+        Write-Host "Tag: $Tag"
+        Write-Host "Origin: $originUrl"
+        Write-Host "Asset: $AssetPath"
+        Write-Host "Notes: $NotesFile"
+        Write-Host "Tag exists: $tagExists"
+        Write-Host "Release exists: $releaseExists"
+        return
     }
 
     git rev-parse -q --verify "refs/tags/$Tag" *> $null

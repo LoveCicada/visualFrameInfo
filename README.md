@@ -66,6 +66,12 @@ Tasks: Run Task → Build Deploy And Package Installer
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1 -Tag 0.1.1
 ```
 
+发布前干跑检查：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1 -Tag 0.1.1 -DryRun
+```
+
 超短操作说明：
 
 1. 先把 `CMakeLists.txt` 里的版本号改成目标版本，例如 `0.1.1`
@@ -73,6 +79,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_relea
 3. 运行 VS Code 任务 `Build Package And Publish Release`
 4. 或手动执行上面的发布命令
 5. 到 GitHub Releases 页面确认 Tag、正文和安装包附件都正确
+
+`v0.1.1` 升级示例：
+
+1. 修改 `CMakeLists.txt`：`project(visualFrameInfo VERSION 0.1.1 LANGUAGES CXX)`
+2. 提交版本更新：`git commit -am "chore: bump version to 0.1.1"`
+3. 推送代码：`git push origin master`
+4. 打包并发布：`Tasks: Run Task → Build Package And Publish Release`
 
 ## 许可
 
