@@ -11,7 +11,7 @@
 ### 环境要求
 
 | 依赖 | 版本 |
-|------|------|
+| ------ | ------ |
 | Windows | 10 / 11 x64 |
 | Visual Studio | 2017（需含 MSVC x64 工具链） |
 | Qt | 5.12.12 msvc2017\_64 |
@@ -23,7 +23,7 @@
 本仓库不包含 ffmpeg 可执行文件（超过 GitHub 单文件 100 MB 限制）。  
 从 [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/) 下载 `ffmpeg-release-essentials.zip`，将其中的以下三个文件复制到仓库根目录的 `ffmpeg/` 文件夹：
 
-```
+```text
 ffmpeg/
   ffmpeg.exe
   ffprobe.exe
@@ -51,12 +51,28 @@ cmake --build --preset default-release-build
 
 在 VS Code 中运行任务：
 
-```
+```text
 Tasks: Run Task → Build Deploy And Package Installer
 ```
 
 产物位于 `install/installer/visualFrameInfo_setup_<version>.exe`。  
 完整流程说明见 [docs/release.md](docs/release.md)。
+
+### 发布到 GitHub Release
+
+最短命令模板：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish_github_release.ps1 -Tag 0.1.1
+```
+
+超短操作说明：
+
+1. 先把 `CMakeLists.txt` 里的版本号改成目标版本，例如 `0.1.1`
+2. 提交并推送代码到远程 `master`
+3. 运行 VS Code 任务 `Build Package And Publish Release`
+4. 或手动执行上面的发布命令
+5. 到 GitHub Releases 页面确认 Tag、正文和安装包附件都正确
 
 ## 许可
 

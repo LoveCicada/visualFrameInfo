@@ -1,73 +1,124 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "CMake Build Debug",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "default-debug-build"
-      ],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "CMake Build Release",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "default-release-build"
-      ],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Deploy Release Package",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/deploy_release.ps1"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "Build And Deploy Release",
-      "dependsOn": [
-        "CMake Build Release",
-        "Deploy Release Package"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "Package Inno Setup Installer",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts/package_inno.ps1"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "Build Deploy And Package Installer",
-      "dependsOn": [
-        "Build And Deploy Release",
-        "Package Inno Setup Installer"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "CMake Build Debug",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"--preset",
+				"default-debug-build"
+			],
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "CMake Build Release",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"--preset",
+				"default-release-build"
+			],
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Deploy Release Package",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/deploy_release.ps1"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "Build And Deploy Release",
+			"dependsOn": [
+				"CMake Build Release",
+				"Deploy Release Package"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		},
+		{
+			"label": "Package Inno Setup Installer",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/package_inno.ps1"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Deploy And Package Installer",
+			"dependsOn": [
+				"Build And Deploy Release",
+				"Package Inno Setup Installer"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		},
+		{
+			"label": "Publish GitHub Release",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/publish_github_release.ps1"
+			],
+			"isBackground": false,
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Package And Publish Release",
+			"dependsOn": [
+				"Build Deploy And Package Installer",
+				"Publish GitHub Release"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		},
+		{
+			"label": "Commit And Push Release Docs",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"git add README.md docs/release.md .vscode/tasks.json scripts/publish_github_release.ps1 && git commit -m \"docs: document reusable release workflow\" -m \"Add a reusable GitHub Release publish script and VS Code tasks.\" -m \"Document the one-line publish command and the short release checklist.\" && git push origin master"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Git Add Release Workflow Files",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"README.md",
+				"docs/release.md",
+				".vscode/tasks.json",
+				"scripts/publish_github_release.ps1"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
 }
