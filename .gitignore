@@ -1,0 +1,58 @@
+# Build and IDE artifacts
+build/
+.vs/
+
+# CMake user-local presets
+CMakeUserPresets.json
+
+# Generated project/build files
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# Visual Studio generated files
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.VC.db
+*.VC.opendb
+
+# Compiler/linker outputs
+*.obj
+*.o
+*.pch
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.lastbuildstate
+*.log
+*.tmp
+*.cache
+
+# Qt auto-generated artifacts
+*_autogen/
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Deploy/install outputs
+install/
+
+# Runtime logs and local benchmark outputs
+logs/
+
+# Local test media and parser outputs
+frameData/测试素材/
+frameData/*.log
+
+# Keep ffmpeg folder structure but ignore large executables
+ffmpeg/*.exe
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

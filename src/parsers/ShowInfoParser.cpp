@@ -1,0 +1,357 @@
+#include "ShowInfoParser.h"
+
+#include <QHash>
+#include <QFile>
+#include <QRegularExpression>
+#include <QStringList>
+#include <QTextStream>
+
+namespace
+{
+QRegularExpression frameLineRegex(
+    "n:\\s*(\\d+)\\s+pts:\\s*(-?\\d+)\\s+pts_time:([0-9\\.-]+)\\s+duration:\\s*(-?\\d+)\\s+duration_time:([0-9\\.-]+).*iskey:(\\d).*type:([IPB])");
+QRegularExpression resolutionRegex("s:(\\d+x\\d+)");
+QRegularExpression fpsConfigRegex("frame_rate:\\s*(\\d+)\\/(\\d+)");
+QRegularExpression fpsSimpleRegex("([0-9]+(?:\\.[0-9]+)?)\\s*fps");
+QRegularExpression codecRegex("Video:\\s*([a-zA-Z0-9_]+)");
+
+double parseFps(const QString &numeratorText, const QString &denominatorText)
+{
+    const double numerator = numeratorText.toDouble();
+    const double denominator = denominatorText.toDouble();
+    if (denominator == 0.0) {
+        return 0.0;
+    }
+    return numerator / denominator;
+}
+
+bool tryBuildFrameFromFfprobe(const QHash<QString, QString> &fields, int frameIndex, FrameInfo &frame)
+{
+    const QString typeText = fields.value("pict_type");
+    if (typeText.isEmpty()) {
+        return false;
+    }
+
+    const QChar type = typeText.at(0);
+    if (type != QChar('I') && type != QChar('P') && type != QChar('B')) {
+        return false;
+    }
+
+    frame.index = frameIndex;
+    frame.type = type;
+    frame.isKey = fields.value("key_frame") == "1";
+    frame.pts = fields.value("best_effort_timestamp").toLongLong();
+    frame.ptsTime = fields.value("best_effort_timestamp_time").toDouble();
+    frame.duration = fields.value("pkt_duration").toLongLong();
+    frame.durationTime = fields.value("pkt_duration_time").toDouble();
+    frame.rawLine = QString("ffprobe frame=%1 type=%2 key=%3")
+                        .arg(frame.index)
+                        .arg(frame.type)
+                        .arg(frame.isKey ? "1" : "0");
+    return true;
+}
+
+bool parseFpsFromFraction(const QString &fractionText, double &fpsValue, QString &fpsText)
+{
+    const QStringList parts = fractionText.split('/');
+    if (parts.size() != 2) {
+        return false;
+    }
+
+    const double fps = parseFps(parts[0], parts[1]);
+    if (fps <= 0.0) {
+        return false;
+    }
+
+    fpsValue = fps;
+    fpsText = QString::number(fpsValue, 'f', 3) + " fps";
+    return true;
+}
+}
+
+bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frames, QString &errorMessage)
+{
+    frames.clear();
+
+    QFile file(logPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        errorMessage = QString("Failed to open log file: %1").arg(logPath);
+        return false;
+    }
+
+    QTextStream stream(&file);
+    bool inFrameSection = false;
+    QHash<QString, QString> ffprobeFrameFields;
+
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine();
+
+        if (line == "[FRAME]") {
+            inFrameSection = true;
+            ffprobeFrameFields.clear();
+            continue;
+        }
+
+        if (line == "[/FRAME]") {
+            if (inFrameSection) {
+                FrameInfo frame;
+                if (tryBuildFrameFromFfprobe(ffprobeFrameFields, frames.size(), frame)) {
+                    frames.push_back(frame);
+                }
+            }
+            inFrameSection = false;
+            ffprobeFrameFields.clear();
+            continue;
+        }
+
+        if (inFrameSection) {
+            const int splitPos = line.indexOf('=');
+            if (splitPos > 0) {
+                const QString key = line.left(splitPos).trimmed();
+                const QString value = line.mid(splitPos + 1).trimmed();
+                ffprobeFrameFields.insert(key, value);
+            }
+            continue;
+        }
+
+        if (!line.contains("Parsed_showinfo") || !line.contains(" type:")) {
+            continue;
+        }
+
+        const QRegularExpressionMatch match = frameLineRegex.match(line);
+        if (!match.hasMatch()) {
+            continue;
+        }
+
+        FrameInfo frame;
+        frame.index = match.captured(1).toInt();
+        frame.pts = match.captured(2).toLongLong();
+        frame.ptsTime = match.captured(3).toDouble();
+        frame.duration = match.captured(4).toLongLong();
+        frame.durationTime = match.captured(5).toDouble();
+        frame.isKey = match.captured(6) == "1";
+        frame.type = match.captured(7).at(0);
+        frame.rawLine = line;
+        frames.push_back(frame);
+    }
+
+    if (frames.isEmpty()) {
+        errorMessage = "No frame rows found in analysis log.";
+        return false;
+    }
+
+    return true;
+}
+
+QVector<GopSegment> ShowInfoParser::buildGops(QVector<FrameInfo> &frames)
+{
+    QVector<int> starts;
+    starts.reserve(frames.size());
+
+    for (int i = 0; i < frames.size(); ++i) {
+        if (frames[i].type == QChar('I')) {
+            starts.push_back(i);
+        }
+    }
+
+    if (starts.isEmpty()) {
+        starts.push_back(0);
+    } else if (starts.first() != 0) {
+        starts.prepend(0);
+    }
+
+    QVector<GopSegment> gops;
+    gops.reserve(starts.size());
+
+    for (int g = 0; g < starts.size(); ++g) {
+        const int startPos = starts[g];
+        const int endPos = (g + 1 < starts.size()) ? (starts[g + 1] - 1) : (frames.size() - 1);
+        if (startPos < 0 || endPos < startPos || endPos >= frames.size()) {
+            continue;
+        }
+
+        GopSegment seg;
+        seg.gopIndex = g;
+        seg.startFrame = frames[startPos].index;
+        seg.endFrame = frames[endPos].index;
+        seg.size = endPos - startPos + 1;
+        seg.startTime = frames[startPos].ptsTime;
+        seg.endTime = frames[endPos].ptsTime;
+        gops.push_back(seg);
+
+        for (int i = startPos; i <= endPos; ++i) {
+            frames[i].gopIndex = g;
+            frames[i].indexInGop = i - startPos;
+        }
+    }
+
+    return gops;
+}
+
+AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
+                                             const QString &logPath,
+                                             const QVector<FrameInfo> &frames,
+                                             const QVector<GopSegment> &gops)
+{
+    AnalysisSummary summary;
+    summary.filePath = videoPath;
+    summary.logPath = logPath;
+    summary.totalFrames = frames.size();
+    summary.gopCount = gops.size();
+
+    QFile file(logPath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream stream(&file);
+        bool inStreamSection = false;
+        QHash<QString, QString> ffprobeStreamFields;
+
+        while (!stream.atEnd()) {
+            const QString line = stream.readLine();
+
+            if (line == "[STREAM]") {
+                inStreamSection = true;
+                ffprobeStreamFields.clear();
+                continue;
+            }
+
+            if (line == "[/STREAM]") {
+                if (inStreamSection) {
+                    if (summary.codec.isEmpty()) {
+                        const QString codecName = ffprobeStreamFields.value("codec_name");
+                        if (!codecName.isEmpty()) {
+                            summary.codec = codecName.toUpper();
+                        }
+                    }
+
+                    if (summary.resolution.isEmpty()) {
+                        const QString width = ffprobeStreamFields.value("width");
+                        const QString height = ffprobeStreamFields.value("height");
+                        if (!width.isEmpty() && !height.isEmpty()) {
+                            summary.resolution = width + "x" + height;
+                        }
+                    }
+
+                    if (summary.fpsText.isEmpty()) {
+                        const QString avgFrameRate = ffprobeStreamFields.value("avg_frame_rate");
+                        if (!avgFrameRate.isEmpty()) {
+                            parseFpsFromFraction(avgFrameRate, summary.fpsValue, summary.fpsText);
+                        }
+
+                        if (summary.fpsText.isEmpty()) {
+                            const QString rFrameRate = ffprobeStreamFields.value("r_frame_rate");
+                            if (!rFrameRate.isEmpty()) {
+                                parseFpsFromFraction(rFrameRate, summary.fpsValue, summary.fpsText);
+                            }
+                        }
+                    }
+                }
+
+                inStreamSection = false;
+                ffprobeStreamFields.clear();
+                continue;
+            }
+
+            if (inStreamSection) {
+                const int splitPos = line.indexOf('=');
+                if (splitPos > 0) {
+                    const QString key = line.left(splitPos).trimmed();
+                    const QString value = line.mid(splitPos + 1).trimmed();
+                    ffprobeStreamFields.insert(key, value);
+                }
+                continue;
+            }
+
+            if (summary.codec.isEmpty()) {
+                const QRegularExpressionMatch codecMatch = codecRegex.match(line);
+                if (codecMatch.hasMatch()) {
+                    summary.codec = codecMatch.captured(1).toUpper();
+                }
+            }
+
+            if (summary.fpsText.isEmpty() && line.contains("frame_rate:")) {
+                const QRegularExpressionMatch fpsMatch = fpsConfigRegex.match(line);
+                if (fpsMatch.hasMatch()) {
+                    summary.fpsValue = parseFps(fpsMatch.captured(1), fpsMatch.captured(2));
+                    if (summary.fpsValue > 0.0) {
+                        summary.fpsText = QString::number(summary.fpsValue, 'f', 3);
+                        summary.fpsText = summary.fpsText + " fps";
+                    }
+                }
+            }
+
+            if (summary.fpsText.isEmpty() && line.contains(" fps")) {
+                const QRegularExpressionMatch fpsSimpleMatch = fpsSimpleRegex.match(line);
+                if (fpsSimpleMatch.hasMatch()) {
+                    summary.fpsValue = fpsSimpleMatch.captured(1).toDouble();
+                    if (summary.fpsValue > 0.0) {
+                        summary.fpsText = QString::number(summary.fpsValue, 'f', 3);
+                        summary.fpsText = summary.fpsText + " fps";
+                    }
+                }
+            }
+
+            if (summary.resolution.isEmpty() && line.contains(" s:")) {
+                const QRegularExpressionMatch resolutionMatch = resolutionRegex.match(line);
+                if (resolutionMatch.hasMatch()) {
+                    summary.resolution = resolutionMatch.captured(1);
+                }
+            }
+
+            if (!summary.codec.isEmpty() && !summary.resolution.isEmpty() && !summary.fpsText.isEmpty()) {
+                break;
+            }
+        }
+    }
+
+    if (summary.codec.isEmpty()) {
+        summary.codec = "Unknown";
+    }
+    if (summary.resolution.isEmpty()) {
+        summary.resolution = "Unknown";
+    }
+    if (summary.fpsText.isEmpty()) {
+        summary.fpsText = "Unknown";
+    }
+
+    for (const FrameInfo &frame : frames) {
+        if (frame.type == QChar('I')) {
+            ++summary.iCount;
+        } else if (frame.type == QChar('P')) {
+            ++summary.pCount;
+        } else if (frame.type == QChar('B')) {
+            ++summary.bCount;
+        }
+    }
+
+    if (!gops.isEmpty()) {
+        summary.minGopSize = gops.first().size;
+        summary.maxGopSize = gops.first().size;
+        int totalGopSize = 0;
+
+        for (const GopSegment &gop : gops) {
+            totalGopSize += gop.size;
+            if (gop.size < summary.minGopSize) {
+                summary.minGopSize = gop.size;
+            }
+            if (gop.size > summary.maxGopSize) {
+                summary.maxGopSize = gop.size;
+            }
+        }
+
+        summary.avgGopSize = static_cast<double>(totalGopSize) / static_cast<double>(gops.size());
+
+        if (gops.size() > 1) {
+            double totalFrameInterval = 0.0;
+            double totalTimeInterval = 0.0;
+            for (int i = 1; i < gops.size(); ++i) {
+                totalFrameInterval += static_cast<double>(gops[i].startFrame - gops[i - 1].startFrame);
+                totalTimeInterval += (gops[i].startTime - gops[i - 1].startTime);
+            }
+            const double divisor = static_cast<double>(gops.size() - 1);
+            summary.avgGopIntervalFrames = totalFrameInterval / divisor;
+            summary.avgGopIntervalSeconds = totalTimeInterval / divisor;
+        }
+    }
+
+    return summary;
+}

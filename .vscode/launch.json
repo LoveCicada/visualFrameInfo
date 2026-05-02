@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug CMake Target (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "stopAtEntry": false,
+      "environment": [],
+      "preLaunchTask": "CMake Build Debug",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Release CMake Target (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/cmake-msvc-release/Release/visualFrameInfo.exe",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "stopAtEntry": false,
+      "environment": [],
+      "preLaunchTask": "CMake Build Release",
+      "console": "integratedTerminal"
+    }
+  ]
+}

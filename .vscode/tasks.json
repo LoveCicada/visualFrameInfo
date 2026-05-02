@@ -1,0 +1,73 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake Build Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "default-debug-build"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake Build Release",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "default-release-build"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy Release Package",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/deploy_release.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Build And Deploy Release",
+      "dependsOn": [
+        "CMake Build Release",
+        "Deploy Release Package"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Package Inno Setup Installer",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/package_inno.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Deploy And Package Installer",
+      "dependsOn": [
+        "Build And Deploy Release",
+        "Package Inno Setup Installer"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}

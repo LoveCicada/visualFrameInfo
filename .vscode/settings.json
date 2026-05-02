@@ -1,0 +1,9 @@
+{
+  "cmake.useCMakePresets": "auto",
+  "cmake.configurePreset": "default",
+  "cmake.buildPreset": "default-build",
+  "cmake.defaultConfigurePreset": "default",
+  "cmake.defaultBuildPreset": "default-build",
+  "cmake.configureOnOpen": true,
+  "cmake.buildBeforeRun": true
+}

@@ -1,0 +1,29 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 16,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "msvc-qt5-release",
+      "displayName": "MSVC Qt5 Release",
+      "description": "Use MSVC toolchain with Qt 5.12.12",
+      "generator": "Visual Studio 15 2017",
+      "architecture": {
+        "value": "x64"
+      },
+      "binaryDir": "${sourceDir}/build/cmake-msvc-release",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "D:/soft/Qt5.12.12/5.12.12/msvc2017_64"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msvc-qt5-release-build",
+      "configurePreset": "msvc-qt5-release"
+    }
+  ]
+}
