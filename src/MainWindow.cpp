@@ -344,7 +344,11 @@ void MainWindow::setupUi()
     auto *central = new QWidget(this);
     auto *rootLayout = new QVBoxLayout(central);
 
-    auto *topRow = new QHBoxLayout();
+    auto *topControlsLayout = new QVBoxLayout();
+    topControlsLayout->setContentsMargins(0, 0, 0, 0);
+    topControlsLayout->setSpacing(6);
+    auto *topRowPrimary = new QHBoxLayout();
+    auto *topRowSecondary = new QHBoxLayout();
     auto *chooseButton = new QPushButton("Select Video", this);
     m_videoPathEdit = new QLineEdit(this);
     m_analyzeButton = new QPushButton("Start Analyze", this);
@@ -354,16 +358,37 @@ void MainWindow::setupUi()
     m_openLogButton = new QPushButton("Open Log", this);
     m_statusLabel = new QLabel("Ready", this);
 
+    auto configureActionButton = [](QPushButton *button) {
+        button->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        button->setMinimumWidth(110);
+    };
+    configureActionButton(chooseButton);
+    configureActionButton(m_analyzeButton);
+    configureActionButton(m_benchmarkButton);
+    configureActionButton(m_openAnalysisLogButton);
+    configureActionButton(reanalyzeButton);
+    configureActionButton(m_openLogButton);
+    m_videoPathEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_statusLabel->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+
     m_openLogButton->setEnabled(false);
 
-    topRow->addWidget(chooseButton);
-    topRow->addWidget(m_videoPathEdit, 1);
-    topRow->addWidget(m_analyzeButton);
-    topRow->addWidget(m_benchmarkButton);
-    topRow->addWidget(m_openAnalysisLogButton);
-    topRow->addWidget(reanalyzeButton);
-    topRow->addWidget(m_openLogButton);
-    topRow->addWidget(m_statusLabel);
+    // Keep file selection on the first row, and group analysis actions on the second row.
+    topRowPrimary->addWidget(chooseButton);
+    topRowPrimary->addWidget(m_videoPathEdit, 1);
+
+    topRowSecondary->addWidget(m_analyzeButton);
+    topRowSecondary->addWidget(reanalyzeButton);
+    topRowSecondary->addWidget(m_benchmarkButton);
+    topRowSecondary->addWidget(m_openAnalysisLogButton);
+    topRowSecondary->addWidget(m_openLogButton);
+    topRowSecondary->addStretch(1);
+
+    // Status details are shown in statusBar() to avoid duplicated horizontal pressure.
+    m_statusLabel->setVisible(false);
+
+    topControlsLayout->addLayout(topRowPrimary);
+    topControlsLayout->addLayout(topRowSecondary);
 
     auto *mainVerticalSplitter = new QSplitter(Qt::Vertical, this);
     auto *topPanel = new QWidget(this);
@@ -390,19 +415,25 @@ void MainWindow::setupUi()
     auto *centerContainer = new QWidget(this);
     auto *centerLayout = new QVBoxLayout(centerContainer);
 
-    auto *timelineToolbar = new QHBoxLayout();
-    auto *zoomOutButton = new QPushButton("-", this);
-    auto *zoomInButton = new QPushButton("+", this);
+    auto *timelineToolbar = new QVBoxLayout();
+    timelineToolbar->setContentsMargins(0, 0, 0, 0);
+    timelineToolbar->setSpacing(4);
+    auto *timelineToolbarRowPrimary = new QHBoxLayout();
+    auto *timelineToolbarRowSecondary = new QHBoxLayout();
+
+    auto *zoomOutButton = new QPushButton("Zoom -", this);
+    auto *zoomInButton = new QPushButton("Zoom +", this);
     auto *zoomResetButton = new QPushButton("100%", this);
     auto *prevIButton = new QPushButton("Prev I", this);
     auto *nextIButton = new QPushButton("Next I", this);
-    auto *prevFrameButton = new QPushButton("<", this);
-    auto *nextFrameButton = new QPushButton(">", this);
+    auto *prevFrameButton = new QPushButton("Prev Frame", this);
+    auto *nextFrameButton = new QPushButton("Next Frame", this);
     m_zoomPercentLabel = new QLabel("100%", this);
     m_zoomSlider = new QSlider(Qt::Horizontal, this);
     m_zoomSlider->setRange(25, 800);
     m_zoomSlider->setValue(100);
-    m_zoomSlider->setFixedWidth(130);
+    m_zoomSlider->setMinimumWidth(120);
+    m_zoomSlider->setMaximumWidth(200);
     m_jumpGopSpin = new QSpinBox(this);
     m_jumpGopSpin->setMinimum(1);
     m_jumpGopSpin->setMaximum(1);
@@ -428,31 +459,34 @@ void MainWindow::setupUi()
     auto *iLegend = createLegendChip("I", "#e05454");
     auto *pLegend = createLegendChip("P", "#498cff");
     auto *bLegend = createLegendChip("B", "#4fb874");
-    timelineToolbar->addWidget(new QLabel("Timeline", this));
-    timelineToolbar->addSpacing(8);
-    timelineToolbar->addWidget(new QLabel("Legend:", this));
-    timelineToolbar->addWidget(iLegend);
-    timelineToolbar->addWidget(pLegend);
-    timelineToolbar->addWidget(bLegend);
-    timelineToolbar->addStretch();
-    timelineToolbar->addWidget(new QLabel("GOP:", this));
-    timelineToolbar->addWidget(m_jumpGopSpin);
-    timelineToolbar->addWidget(jumpGopButton);
-    timelineToolbar->addWidget(new QLabel("Frame:", this));
-    timelineToolbar->addWidget(m_jumpFrameSpin);
-    timelineToolbar->addWidget(jumpFrameButton);
-    timelineToolbar->addWidget(prevFrameButton);
-    timelineToolbar->addWidget(nextFrameButton);
-    timelineToolbar->addWidget(prevIButton);
-    timelineToolbar->addWidget(nextIButton);
-    timelineToolbar->addWidget(bSeparatorCheck);
-    timelineToolbar->addWidget(new QLabel("Density:", this));
-    timelineToolbar->addWidget(m_densityModeCombo);
-    timelineToolbar->addWidget(zoomOutButton);
-    timelineToolbar->addWidget(m_zoomSlider);
-    timelineToolbar->addWidget(m_zoomPercentLabel);
-    timelineToolbar->addWidget(zoomResetButton);
-    timelineToolbar->addWidget(zoomInButton);
+    timelineToolbarRowPrimary->addWidget(new QLabel("Timeline", this));
+    timelineToolbarRowPrimary->addSpacing(8);
+    timelineToolbarRowPrimary->addWidget(new QLabel("Legend:", this));
+    timelineToolbarRowPrimary->addWidget(iLegend);
+    timelineToolbarRowPrimary->addWidget(pLegend);
+    timelineToolbarRowPrimary->addWidget(bLegend);
+    timelineToolbarRowPrimary->addWidget(bSeparatorCheck);
+    timelineToolbarRowPrimary->addStretch();
+    timelineToolbarRowPrimary->addWidget(prevFrameButton);
+    timelineToolbarRowPrimary->addWidget(nextFrameButton);
+    timelineToolbarRowPrimary->addWidget(prevIButton);
+    timelineToolbarRowPrimary->addWidget(nextIButton);
+
+    timelineToolbarRowSecondary->addWidget(new QLabel("GOP:", this));
+    timelineToolbarRowSecondary->addWidget(m_jumpGopSpin);
+    timelineToolbarRowSecondary->addWidget(jumpGopButton);
+    timelineToolbarRowSecondary->addWidget(new QLabel("Frame:", this));
+    timelineToolbarRowSecondary->addWidget(m_jumpFrameSpin);
+    timelineToolbarRowSecondary->addWidget(jumpFrameButton);
+    timelineToolbarRowSecondary->addWidget(new QLabel("Density:", this));
+    timelineToolbarRowSecondary->addWidget(m_densityModeCombo);
+    timelineToolbarRowSecondary->addStretch(1);
+    timelineToolbarRowSecondary->addWidget(new QLabel("Zoom:", this));
+    timelineToolbarRowSecondary->addWidget(zoomOutButton);
+    timelineToolbarRowSecondary->addWidget(m_zoomSlider);
+    timelineToolbarRowSecondary->addWidget(m_zoomPercentLabel);
+    timelineToolbarRowSecondary->addWidget(zoomResetButton);
+    timelineToolbarRowSecondary->addWidget(zoomInButton);
 
     m_timelineView = new TimelineView(this);
     m_overviewBar = new TimelineOverviewBar(this);
@@ -473,10 +507,13 @@ void MainWindow::setupUi()
     m_previewToggle->setChecked(false);
     m_previewToggle->setEnabled(false);
     m_previewToggle->setToolTip("Show video frame at current position (requires video file)");
-    timelineToolbar->addWidget(m_previewToggle);
+    timelineToolbarRowSecondary->addWidget(m_previewToggle);
 
     m_previewWidget = new PreviewFrameWidget(this);
     m_previewWidget->setVisible(false);
+
+    timelineToolbar->addLayout(timelineToolbarRowPrimary);
+    timelineToolbar->addLayout(timelineToolbarRowSecondary);
 
     centerLayout->addLayout(timelineToolbar);
     centerLayout->addWidget(m_overviewBar);
@@ -497,7 +534,7 @@ void MainWindow::setupUi()
     mainVerticalSplitter->setStretchFactor(0, 2);
     mainVerticalSplitter->setStretchFactor(1, 3);
 
-    rootLayout->addLayout(topRow);
+    rootLayout->addLayout(topControlsLayout);
     rootLayout->addWidget(mainVerticalSplitter, 1);
 
     setCentralWidget(central);
