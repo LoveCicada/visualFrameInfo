@@ -1,3 +1,7 @@
+param(
+    [string]$AppVersion
+)
+
 $ErrorActionPreference = 'Stop'
 
 function Get-RepoRoot {
@@ -106,7 +110,10 @@ $repoRoot = Get-RepoRoot
 $sourceDir = Join-Path $repoRoot 'install/Release'
 $outDir = Join-Path $repoRoot 'install/installer'
 $scriptPath = Join-Path $repoRoot 'scripts/inno/visualFrameInfo.iss'
-$appVersion = Get-ProjectVersion -RepoRoot $repoRoot
+$appVersion = $AppVersion
+if ([string]::IsNullOrWhiteSpace($appVersion)) {
+    $appVersion = Get-ProjectVersion -RepoRoot $repoRoot
+}
 $targetInstallerName = "visualFrameInfo_setup_{0}.exe" -f $appVersion
 
 if (-not (Test-Path $sourceDir)) {
