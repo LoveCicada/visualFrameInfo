@@ -19,6 +19,10 @@ SummaryPanel::SummaryPanel(QWidget *parent)
     m_minMaxGopValue = new QLabel("-");
     m_intervalValue = new QLabel("-");
 
+    m_totalFramesValue->setStyleSheet("font-weight: 600;");
+    m_ipbValue->setStyleSheet("font-weight: 600;");
+    m_gopCountValue->setStyleSheet("font-weight: 600;");
+
     summaryForm->addRow("Total frames:", m_totalFramesValue);
     summaryForm->addRow("I / P / B:", m_ipbValue);
     summaryForm->addRow("GOP count:", m_gopCountValue);

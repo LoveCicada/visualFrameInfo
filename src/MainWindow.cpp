@@ -95,6 +95,7 @@ void MainWindow::chooseVideoFile()
 
     m_videoPath = path;
     m_videoPathEdit->setText(path);
+    m_videoPathEdit->setToolTip(path);
     updateSourceInfo();
 }
 
@@ -124,6 +125,7 @@ void MainWindow::startAnalysis()
     }
 
     m_videoPath = path;
+    m_videoPathEdit->setToolTip(path);
     m_analysisInProgress = true;
     m_analyzeButton->setEnabled(false);
     m_benchmarkButton->setEnabled(false);
@@ -369,6 +371,8 @@ void MainWindow::setupUi()
     configureActionButton(reanalyzeButton);
     configureActionButton(m_openLogButton);
     m_videoPathEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_videoPathEdit->setClearButtonEnabled(true);
+    m_videoPathEdit->setToolTip("Input video path. Full path is shown on hover.");
     m_statusLabel->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
 
     m_openLogButton->setEnabled(false);
@@ -423,7 +427,7 @@ void MainWindow::setupUi()
 
     auto *zoomOutButton = new QPushButton("Zoom -", this);
     auto *zoomInButton = new QPushButton("Zoom +", this);
-    auto *zoomResetButton = new QPushButton("100%", this);
+    auto *zoomResetButton = new QPushButton("Reset", this);
     auto *prevIButton = new QPushButton("Prev I", this);
     auto *nextIButton = new QPushButton("Next I", this);
     auto *prevFrameButton = new QPushButton("Prev Frame", this);
@@ -437,14 +441,16 @@ void MainWindow::setupUi()
     m_jumpGopSpin = new QSpinBox(this);
     m_jumpGopSpin->setMinimum(1);
     m_jumpGopSpin->setMaximum(1);
-    auto *jumpGopButton = new QPushButton("Jump GOP", this);
+    auto *jumpGopButton = new QPushButton("Go GOP", this);
     m_jumpFrameSpin = new QSpinBox(this);
     m_jumpFrameSpin->setMinimum(0);
     m_jumpFrameSpin->setMaximum(0);
     m_densityModeCombo = new QComboBox(this);
     m_densityModeCombo->addItem("Frame Mode", static_cast<int>(TimelineView::FrameMode));
     m_densityModeCombo->addItem("GOP Compact", static_cast<int>(TimelineView::GopCompactMode));
-    auto *jumpFrameButton = new QPushButton("Jump Frame", this);
+    auto *jumpFrameButton = new QPushButton("Go Frame", this);
+    jumpGopButton->setToolTip("Jump to target GOP");
+    jumpFrameButton->setToolTip("Jump to target frame");
     auto *bSeparatorCheck = new QCheckBox("B separator", this);
     bSeparatorCheck->setChecked(true);
     auto createLegendChip = [this](const QString &text, const QString &color) {
