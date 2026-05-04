@@ -1,6 +1,6 @@
 # visualFrameInfo
 
-视频帧信息分析工具，基于 Qt 5 + CMake + ffprobe，支持 GOP 段预览与帧级别统计。
+视频帧信息分析工具，基于 Qt 5 + CMake + ffprobe，支持 GOP 段预览、帧级别统计与平均比特率显示。
 
 ## 下载安装
 

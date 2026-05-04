@@ -146,6 +146,12 @@ Use this checklist when validating overwrite upgrade installation behavior.
 4. Preview cache files are generated under `logs/preview_cache` to reduce repeated extraction cost.
 5. Rapid frame navigation uses async request handling and applies only the latest preview result.
 
+## Average Bitrate Feature Notes
+
+1. Average bitrate display depends on ffprobe frame field `pkt_size`.
+2. Newly generated analysis logs include `pkt_size` and can populate `Average Bitrate` in Source panel.
+3. Historical logs generated before this feature may miss `pkt_size`; in that case UI displays `-`.
+
 ## Benchmark Outputs
 
 1. In-app `Run Benchmark` appends comparison rows to `logs/benchmark/benchmark_comparison.tsv`.

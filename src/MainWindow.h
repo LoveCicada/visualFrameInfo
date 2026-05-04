@@ -83,6 +83,7 @@ private:
     QLabel *m_resolutionValue = nullptr;
     QLabel *m_fpsValue = nullptr;
     QLabel *m_logPathValue = nullptr;
+    QLabel *m_bitrateValue = nullptr;
 
     QScrollArea *m_timelineScrollArea = nullptr;
     TimelineView *m_timelineView = nullptr;

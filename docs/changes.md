@@ -266,3 +266,18 @@
 ### Impact (F-025)
 
 1. Users can optionally inspect actual video image context while navigating GOP/frame structure, without introducing embedded playback dependency.
+
+## 2026-05-05
+
+### F-026 Frame size parsing and average bitrate display
+
+1. Extended ffprobe frame field collection to include `pkt_size`.
+2. Added parser mapping for per-frame packet size and derived per-frame bitrate.
+3. Added summary-level average bitrate calculation based on total frame bytes and total duration.
+4. Added Source panel field `Average Bitrate` in main UI.
+5. Kept fallback behavior as `-` when imported historical logs do not contain frame size data.
+
+### Impact (F-026)
+
+1. Source panel now shows end-to-end estimated average bitrate for newly analyzed videos.
+2. Bitrate calculation is now performed in parser/service data pipeline rather than UI-layer placeholders.

@@ -21,6 +21,7 @@ struct AnalysisSummary
     double avgGopSize = 0.0;
     double avgGopIntervalFrames = 0.0;
     double avgGopIntervalSeconds = 0.0;
+    double averageBitrate = 0.0; // Average bitrate of the video
 };
 
 #endif // ANALYSISSUMMARY_H

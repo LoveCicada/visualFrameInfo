@@ -222,6 +222,7 @@ void MainWindow::startAnalysis()
 
         result.gops = ShowInfoParser::buildGops(result.frames);
         result.summary = ShowInfoParser::buildSummary(result.videoPath, result.logPath, result.frames, result.gops);
+
         result.ok = true;
         return result;
     }));
@@ -409,12 +410,14 @@ void MainWindow::setupUi()
     m_fpsValue = new QLabel("-");
     m_logPathValue = new QLabel("-");
     m_logPathValue->setWordWrap(true);
+    m_bitrateValue = new QLabel("-");
 
     leftForm->addRow("File:", m_fileNameValue);
     leftForm->addRow("Codec:", m_codecValue);
     leftForm->addRow("Resolution:", m_resolutionValue);
     leftForm->addRow("FPS:", m_fpsValue);
     leftForm->addRow("Log:", m_logPathValue);
+    leftForm->addRow("Average Bitrate:", m_bitrateValue);
 
     auto *centerContainer = new QWidget(this);
     auto *centerLayout = new QVBoxLayout(centerContainer);
@@ -632,6 +635,10 @@ void MainWindow::updateSourceInfo()
     m_codecValue->setText(m_summary.codec.isEmpty() ? "-" : m_summary.codec);
     m_resolutionValue->setText(m_summary.resolution.isEmpty() ? "-" : m_summary.resolution);
     m_fpsValue->setText(m_summary.fpsText.isEmpty() ? "-" : m_summary.fpsText);
+
+    if (m_bitrateValue) {
+        m_bitrateValue->setText(m_summary.averageBitrate > 0 ? QString::number(m_summary.averageBitrate, 'f', 2) + " kbps" : "-");
+    }
 }
 
 void MainWindow::clearResultViews()

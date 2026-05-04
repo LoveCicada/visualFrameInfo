@@ -59,6 +59,7 @@ struct FfprobeFrameFields
     double ptsTime = 0.0;
     qint64 duration = 0;
     double durationTime = 0.0;
+    int pktSize = 0;
 
     void clear()
     {
@@ -68,6 +69,7 @@ struct FfprobeFrameFields
         ptsTime = 0.0;
         duration = 0;
         durationTime = 0.0;
+        pktSize = 0;
     }
 };
 
@@ -85,6 +87,8 @@ void parseFfprobeFrameField(const QString &line, FfprobeFrameFields &fields)
         fields.duration = line.mid(13).trimmed().toLongLong();
     } else if (line.startsWith("pkt_duration_time=")) {
         fields.durationTime = line.mid(18).trimmed().toDouble();
+    } else if (line.startsWith("pkt_size=")) {
+        fields.pktSize = line.mid(9).trimmed().toInt();
     }
 }
 
@@ -106,6 +110,10 @@ bool tryBuildFrameFromFfprobeFast(const FfprobeFrameFields &fields, int frameInd
     frame.ptsTime = fields.ptsTime;
     frame.duration = fields.duration;
     frame.durationTime = fields.durationTime;
+    frame.sizeInBytes = fields.pktSize;
+    if (frame.durationTime > 0.0 && frame.sizeInBytes > 0) {
+        frame.bitrate = (static_cast<double>(frame.sizeInBytes) * 8.0) / frame.durationTime / 1000.0;
+    }
     frame.rawLine = QString("ffprobe frame=%1 type=%2 key=%3")
                         .arg(frame.index)
                         .arg(frame.type)
@@ -149,11 +157,11 @@ bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frame
         const QString line = stream.readLine();
 
         // CSV format: ffprobe -of csv outputs one line per frame:
-        // frame,{key_frame},{best_effort_timestamp},{best_effort_timestamp_time},{pkt_duration},{pkt_duration_time},{pict_type}
+        // frame,{key_frame},{best_effort_timestamp},{best_effort_timestamp_time},{pkt_duration},{pkt_duration_time},{pkt_size},{pict_type}
         if (line.startsWith("frame,")) {
             const QStringList parts = line.split(',');
-            if (parts.size() >= 7) {
-                const QString typeStr = parts.at(6);
+            if (parts.size() >= 8) {
+                const QString typeStr = parts.at(7);
                 if (!typeStr.isEmpty()) {
                     const QChar type = typeStr.at(0);
                     if (type == QChar('I') || type == QChar('P') || type == QChar('B')) {
@@ -165,6 +173,10 @@ bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frame
                         frame.ptsTime = parts.at(3).toDouble();
                         frame.duration = parts.at(4).toLongLong();
                         frame.durationTime = parts.at(5).toDouble();
+                        frame.sizeInBytes = parts.at(6).toInt();
+                        if (frame.durationTime > 0.0 && frame.sizeInBytes > 0) {
+                            frame.bitrate = (static_cast<double>(frame.sizeInBytes) * 8.0) / frame.durationTime / 1000.0;
+                        }
                         frame.rawLine = QString("ffprobe frame=%1 type=%2 key=%3")
                                             .arg(frame.index)
                                             .arg(frame.type)
@@ -428,6 +440,25 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
         } else if (frame.type == QChar('B')) {
             ++summary.bCount;
         }
+    }
+
+    qint64 totalBytes = 0;
+    double totalDurationSeconds = 0.0;
+    for (const FrameInfo &frame : frames) {
+        if (frame.sizeInBytes > 0) {
+            totalBytes += frame.sizeInBytes;
+        }
+        if (frame.durationTime > 0.0) {
+            totalDurationSeconds += frame.durationTime;
+        }
+    }
+
+    if (totalDurationSeconds <= 0.0 && summary.fpsValue > 0.0 && !frames.isEmpty()) {
+        totalDurationSeconds = static_cast<double>(frames.size()) / summary.fpsValue;
+    }
+
+    if (totalBytes > 0 && totalDurationSeconds > 0.0) {
+        summary.averageBitrate = (static_cast<double>(totalBytes) * 8.0) / totalDurationSeconds / 1000.0;
     }
 
     if (!gops.isEmpty()) {

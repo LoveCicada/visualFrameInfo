@@ -15,6 +15,8 @@ struct FrameInfo
     int gopIndex = -1;
     int indexInGop = -1;
     QString rawLine;
+    int sizeInBytes = 0; // Size of the frame in bytes
+    double bitrate = 0.0; // Bitrate in kbps
 };
 
 #endif // FRAMEINFO_H
