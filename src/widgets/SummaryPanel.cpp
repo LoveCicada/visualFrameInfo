@@ -2,6 +2,7 @@
 
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 SummaryPanel::SummaryPanel(QWidget *parent)
@@ -43,6 +44,36 @@ SummaryPanel::SummaryPanel(QWidget *parent)
 
     layout->addWidget(summaryBox);
     layout->addWidget(selectedBox);
+
+    // More Info (F8) - collapsible
+    m_moreInfoToggle = new QToolButton(this);
+    m_moreInfoToggle->setText("More Info v");
+    m_moreInfoToggle->setCheckable(true);
+    m_moreInfoToggle->setChecked(false);
+    m_moreInfoToggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_moreInfoToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    layout->addWidget(m_moreInfoToggle);
+
+    m_moreInfoBox = new QGroupBox(this);
+    auto *moreForm = new QFormLayout(m_moreInfoBox);
+    m_durationValue   = new QLabel("-");
+    m_bitrateValue    = new QLabel("-");
+    m_colorSpaceValue = new QLabel("-");
+    m_bitDepthValue   = new QLabel("-");
+    m_pixFmtValue     = new QLabel("-");
+    moreForm->addRow("Duration:",     m_durationValue);
+    moreForm->addRow("Avg bitrate:",  m_bitrateValue);
+    moreForm->addRow("Color space:",  m_colorSpaceValue);
+    moreForm->addRow("Bit depth:",    m_bitDepthValue);
+    moreForm->addRow("Pixel format:", m_pixFmtValue);
+    m_moreInfoBox->setVisible(false);
+    layout->addWidget(m_moreInfoBox);
+
+    connect(m_moreInfoToggle, &QToolButton::toggled, this, [this](bool checked) {
+        m_moreInfoBox->setVisible(checked);
+        m_moreInfoToggle->setText(checked ? "More Info ^" : "More Info v");
+    });
+
     layout->addStretch();
 }
 
@@ -56,6 +87,24 @@ void SummaryPanel::setSummary(const AnalysisSummary &summary)
     m_intervalValue->setText(QString("%1 frames, %2 s")
                                  .arg(summary.avgGopIntervalFrames, 0, 'f', 2)
                                  .arg(summary.avgGopIntervalSeconds, 0, 'f', 3));
+
+    // More Info (F8)
+    if (summary.durationSeconds > 0.0) {
+        const int h = static_cast<int>(summary.durationSeconds) / 3600;
+        const int m = (static_cast<int>(summary.durationSeconds) % 3600) / 60;
+        const double s = summary.durationSeconds - h * 3600 - m * 60;
+        m_durationValue->setText(QString("%1:%2:%3")
+            .arg(h, 2, 10, QChar('0'))
+            .arg(m, 2, 10, QChar('0'))
+            .arg(s, 6, 'f', 3, QChar('0')));
+    } else {
+        m_durationValue->setText("-");
+    }
+    m_bitrateValue->setText(summary.averageBitrate > 0.0
+        ? QString("%1 kbps").arg(summary.averageBitrate, 0, 'f', 1) : "-");
+    m_colorSpaceValue->setText(summary.colorSpace.isEmpty() ? "-" : summary.colorSpace);
+    m_bitDepthValue->setText(summary.bitDepth > 0 ? QString::number(summary.bitDepth) + " bit" : "-");
+    m_pixFmtValue->setText(summary.pixFmt.isEmpty() ? "-" : summary.pixFmt);
 }
 
 void SummaryPanel::clearSummary()
@@ -68,6 +117,11 @@ void SummaryPanel::clearSummary()
     m_intervalValue->setText("-");
     m_selectedFrameValue->setText("-");
     m_selectedGopValue->setText("-");
+    m_durationValue->setText("-");
+    m_bitrateValue->setText("-");
+    m_colorSpaceValue->setText("-");
+    m_bitDepthValue->setText("-");
+    m_pixFmtValue->setText("-");
 }
 
 void SummaryPanel::setSelectedFrame(const FrameInfo *frame, const GopSegment *gop)

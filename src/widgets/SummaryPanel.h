@@ -1,7 +1,9 @@
 #ifndef SUMMARYPANEL_H
 #define SUMMARYPANEL_H
 
+#include <QGroupBox>
 #include <QLabel>
+#include <QToolButton>
 #include <QWidget>
 
 #include "../models/AnalysisSummary.h"
@@ -28,6 +30,15 @@ private:
     QLabel *m_intervalValue = nullptr;
     QLabel *m_selectedFrameValue = nullptr;
     QLabel *m_selectedGopValue = nullptr;
+
+    // More Info (F8)
+    QToolButton *m_moreInfoToggle = nullptr;
+    QGroupBox   *m_moreInfoBox = nullptr;
+    QLabel *m_durationValue = nullptr;
+    QLabel *m_bitrateValue = nullptr;
+    QLabel *m_colorSpaceValue = nullptr;
+    QLabel *m_bitDepthValue = nullptr;
+    QLabel *m_pixFmtValue = nullptr;
 };
 
 #endif // SUMMARYPANEL_H

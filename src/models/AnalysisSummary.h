@@ -22,6 +22,12 @@ struct AnalysisSummary
     double avgGopIntervalFrames = 0.0;
     double avgGopIntervalSeconds = 0.0;
     double averageBitrate = 0.0; // Average bitrate of the video
+
+    // Enhanced metadata (F8)
+    double durationSeconds = 0.0;
+    QString colorSpace;
+    int bitDepth = 0;
+    QString pixFmt;
 };
 
 #endif // ANALYSISSUMMARY_H

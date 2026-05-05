@@ -323,6 +323,27 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
                 if (summary.fpsText.isEmpty() && parts.size() >= 6 && !parts.at(5).isEmpty()) {
                     parseFpsFromFraction(parts.at(5), summary.fpsValue, summary.fpsText);
                 }
+                // Enhanced metadata (F8): duration, color_space, bits_per_raw_sample, pix_fmt
+                if (summary.durationSeconds <= 0.0 && parts.size() >= 7 && !parts.at(6).isEmpty()) {
+                    const double d = parts.at(6).toDouble();
+                    if (d > 0.0) { summary.durationSeconds = d; }
+                }
+                if (summary.colorSpace.isEmpty() && parts.size() >= 8) {
+                    const QString cs = parts.at(7).trimmed();
+                    if (!cs.isEmpty() && cs != "unknown" && cs != "N/A") {
+                        summary.colorSpace = cs;
+                    }
+                }
+                if (summary.bitDepth == 0 && parts.size() >= 9) {
+                    const int bd = parts.at(8).toInt();
+                    if (bd > 0) { summary.bitDepth = bd; }
+                }
+                if (summary.pixFmt.isEmpty() && parts.size() >= 10) {
+                    const QString pf = parts.at(9).trimmed();
+                    if (!pf.isEmpty() && pf != "unknown" && pf != "N/A") {
+                        summary.pixFmt = pf;
+                    }
+                }
                 continue;
             }
 
@@ -350,6 +371,28 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
                         }
                     }
 
+                    // Enhanced metadata (F8)
+                    if (summary.durationSeconds <= 0.0) {
+                        const double d = ffprobeStreamFields.value("duration").toDouble();
+                        if (d > 0.0) { summary.durationSeconds = d; }
+                    }
+                    if (summary.colorSpace.isEmpty()) {
+                        const QString cs = ffprobeStreamFields.value("color_space");
+                        if (!cs.isEmpty() && cs != "unknown" && cs != "N/A") {
+                            summary.colorSpace = cs;
+                        }
+                    }
+                    if (summary.bitDepth == 0) {
+                        const int bd = ffprobeStreamFields.value("bits_per_raw_sample").toInt();
+                        if (bd > 0) { summary.bitDepth = bd; }
+                    }
+                    if (summary.pixFmt.isEmpty()) {
+                        const QString pf = ffprobeStreamFields.value("pix_fmt");
+                        if (!pf.isEmpty() && pf != "unknown" && pf != "N/A") {
+                            summary.pixFmt = pf;
+                        }
+                    }
+
                     if (summary.fpsText.isEmpty()) {
                         const QString avgFrameRate = ffprobeStreamFields.value("avg_frame_rate");
                         if (!avgFrameRate.isEmpty()) {
@@ -368,6 +411,17 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
                 inStreamSection = false;
                 ffprobeStreamFields.clear();
                 continue;
+            }
+
+            // Extract duration from showinfo stderr log line as fallback
+            if (summary.durationSeconds <= 0.0 && line.contains("Duration:")) {
+                const QRegularExpression durationLineRe("Duration:\\s*(\\d+):(\\d+):([0-9.]+)");
+                const QRegularExpressionMatch dm = durationLineRe.match(line);
+                if (dm.hasMatch()) {
+                    summary.durationSeconds = dm.captured(1).toDouble() * 3600.0
+                                             + dm.captured(2).toDouble() * 60.0
+                                             + dm.captured(3).toDouble();
+                }
             }
 
             if (inStreamSection) {
@@ -459,6 +513,11 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
 
     if (totalBytes > 0 && totalDurationSeconds > 0.0) {
         summary.averageBitrate = (static_cast<double>(totalBytes) * 8.0) / totalDurationSeconds / 1000.0;
+    }
+
+    // Use frame-derived duration as fallback for durationSeconds
+    if (summary.durationSeconds <= 0.0 && totalDurationSeconds > 0.0) {
+        summary.durationSeconds = totalDurationSeconds;
     }
 
     if (!gops.isEmpty()) {
