@@ -877,7 +877,7 @@ void MainWindow::setupUi()
     m_openLogButton->setEnabled(false);
 
     connect(m_recentFilesCombo,
-            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::activated),
             this,
             [this](int index) {
         if (index < 0) {
