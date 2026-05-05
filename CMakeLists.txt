@@ -25,6 +25,8 @@ add_executable(visualFrameInfo WIN32
     src/services/FfmpegRunner.h
     src/widgets/FrameTableView.cpp
     src/widgets/FrameTableView.h
+    src/widgets/GopHistogramWidget.cpp
+    src/widgets/GopHistogramWidget.h
     src/widgets/SummaryPanel.cpp
     src/widgets/SummaryPanel.h
     src/widgets/TimelineOverviewBar.cpp
@@ -41,3 +43,7 @@ target_link_libraries(visualFrameInfo PRIVATE
     Qt5::Widgets
     Qt5::Concurrent
 )
+
+if(MSVC)
+    target_compile_options(visualFrameInfo PRIVATE /utf-8)
+endif()

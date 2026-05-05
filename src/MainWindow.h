@@ -22,6 +22,7 @@ class QProgressBar;
 class QSlider;
 class QScrollArea;
 class QSpinBox;
+class GopHistogramWidget;
 class SummaryPanel;
 class TimelineView;
 class TimelineOverviewBar;
@@ -99,6 +100,7 @@ private:
     TimelineView *m_timelineView = nullptr;
     TimelineOverviewBar *m_overviewBar = nullptr;
     SummaryPanel *m_summaryPanel = nullptr;
+    GopHistogramWidget *m_gopHistogram = nullptr;
     FrameTableView *m_frameTableView = nullptr;
     QCheckBox *m_previewToggle = nullptr;
     PreviewFrameWidget *m_previewWidget = nullptr;

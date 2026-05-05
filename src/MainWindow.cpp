@@ -39,6 +39,7 @@
 #include "services/FfmpegRunner.h"
 #include "widgets/FrameTableView.h"
 #include "widgets/PreviewFrameWidget.h"
+#include "widgets/GopHistogramWidget.h"
 #include "widgets/SummaryPanel.h"
 #include "widgets/TimelineOverviewBar.h"
 #include "widgets/TimelineView.h"
@@ -186,6 +187,7 @@ void MainWindow::startAnalysis()
         m_overviewBar->setData(m_frames, m_gops);
         m_frameTableView->setFrames(m_frames);
         m_summaryPanel->setSummary(m_summary);
+        m_gopHistogram->setGops(m_gops);
 
         if (!m_frames.isEmpty()) {
             m_jumpFrameSpin->setRange(m_frames.first().index, m_frames.last().index);
@@ -787,9 +789,38 @@ void MainWindow::setupUi()
 
     m_summaryPanel = new SummaryPanel(this);
 
+    // Collapsible GOP histogram
+    auto *rightPanel = new QWidget(this);
+    auto *rightPanelLayout = new QVBoxLayout(rightPanel);
+    rightPanelLayout->setContentsMargins(0, 0, 0, 0);
+    rightPanelLayout->setSpacing(4);
+
+    auto *histToggle = new QToolButton(this);
+    histToggle->setText("GOP Size Histogram");
+    histToggle->setCheckable(true);
+    histToggle->setChecked(false);
+    histToggle->setArrowType(Qt::RightArrow);
+    histToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    histToggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    m_gopHistogram = new GopHistogramWidget(this);
+    m_gopHistogram->setVisible(false);
+    m_gopHistogram->setMinimumHeight(110);
+    m_gopHistogram->setMaximumHeight(160);
+
+    connect(histToggle, &QToolButton::toggled, this, [histToggle, this](bool checked) {
+        m_gopHistogram->setVisible(checked);
+        histToggle->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+    });
+
+    rightPanelLayout->addWidget(m_summaryPanel);
+    rightPanelLayout->addWidget(histToggle);
+    rightPanelLayout->addWidget(m_gopHistogram);
+    rightPanelLayout->addStretch(1);
+
     topPanelLayout->addWidget(leftBox, 1);
     topPanelLayout->addWidget(centerContainer, 5);
-    topPanelLayout->addWidget(m_summaryPanel, 1);
+    topPanelLayout->addWidget(rightPanel, 1);
 
     m_frameTableView = new FrameTableView(this);
 
@@ -923,6 +954,7 @@ void MainWindow::clearResultViews()
     }
     m_frameTableView->setFrames(m_frames);
     m_summaryPanel->clearSummary();
+    m_gopHistogram->setGops({});
     m_logPathValue->setText("-");
     m_jumpFrameSpin->setRange(0, 0);
     m_jumpFrameSpin->setValue(0);
@@ -1082,6 +1114,7 @@ bool MainWindow::loadAnalysisLog(const QString &logPath, const QString &sourceVi
     m_overviewBar->setData(m_frames, m_gops);
     m_frameTableView->setFrames(m_frames);
     m_summaryPanel->setSummary(m_summary);
+    m_gopHistogram->setGops(m_gops);
 
     if (!m_frames.isEmpty()) {
         m_jumpFrameSpin->setRange(m_frames.first().index, m_frames.last().index);
