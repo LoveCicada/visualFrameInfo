@@ -106,6 +106,134 @@ QString csvEscape(const QString &value)
     }
     return escaped;
 }
+
+QString buildRoundedUiStyleSheet()
+{
+    // ── Theme tokens ──────────────────────────────────────────────────────────
+    // Adjust these to retheme the entire application in one place.
+    const QString bg         = QStringLiteral("#edf1f7");  // window / panel bg
+    const QString card       = QStringLiteral("#f7faff");  // elevated card surface
+    const QString border     = QStringLiteral("#ccd6e6");  // default border
+    const QString accent     = QStringLiteral("#5a8ddf");  // primary action colour
+    const QString accentDk   = QStringLiteral("#4678c8");  // pressed / darker accent
+    const QString text       = QStringLiteral("#1f2937");  // primary text
+
+    // ── Derived tokens (computed from above; rarely need changing) ────────────
+    const QString btnNorm    = QStringLiteral("#e8edf6");
+    const QString btnHov     = QStringLiteral("#dbe5f6");
+    const QString btnPrs     = QStringLiteral("#d1ddef");
+    const QString borderInput= QStringLiteral("#c7d1e2");
+    const QString borderFoc  = QStringLiteral("#6e99de");
+    const QString textMuted  = QStringLiteral("#98a3b6");
+    const QString textTitle  = QStringLiteral("#3f4d66");
+    const QString textHead   = QStringLiteral("#334155");
+    const QString accentLight= QStringLiteral("#9fb9e6");
+    const QString scrollBg   = QStringLiteral("#edf2fa");
+    const QString scrollHnd  = QStringLiteral("#b9c6db");
+    const QString scrollHov  = QStringLiteral("#a9b9d2");
+
+    return QString(
+        // ── Base ──────────────────────────────────────────────────────────────
+        "QMainWindow, QWidget {"
+        "  background-color: %1; color: %2;"
+        "  selection-background-color: #cfe0fb; selection-color: %2; }"
+
+        // ── Buttons ───────────────────────────────────────────────────────────
+        "QPushButton, QToolButton {"
+        "  background-color: %3; border: 1px solid %4; border-radius: 8px;"
+        "  padding: 4px 11px; min-height: 20px; }"
+        "QPushButton:hover, QToolButton:hover { background-color: %5; }"
+        "QPushButton:pressed, QToolButton:pressed { background-color: %6; }"
+        "QPushButton:disabled, QToolButton:disabled {"
+        "  color: %7; background-color: #f1f4fa; border-color: #d8dfea; }"
+
+        // Capsule button group variants (assign via setProperty("capsule", "first/mid/last"))
+        "QPushButton[capsule=\"first\"] {"
+        "  border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; }"
+        "QPushButton[capsule=\"mid\"] {"
+        "  border-radius: 0; border-right: none; }"
+        "QPushButton[capsule=\"last\"] {"
+        "  border-top-left-radius: 0; border-bottom-left-radius: 0; }"
+
+        // Accent / primary button
+        "QPushButton[accent=\"true\"] {"
+        "  background-color: %8; color: #ffffff; border: 1px solid %9; font-weight: 600; }"
+        "QPushButton[accent=\"true\"]:hover  { background-color: #4f84d9; }"
+        "QPushButton[accent=\"true\"]:pressed { background-color: %9; }"
+        "QPushButton[accent=\"true\"]:disabled {"
+        "  background-color: %10; border-color: %10; color: #f3f7ff; }"
+
+        // ── Inputs ────────────────────────────────────────────────────────────
+        "QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {"
+        "  background-color: #ffffff; border: 1px solid %11; border-radius: 8px; padding: 3px 8px; }"
+        "QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {"
+        "  border: 1px solid %12; }"
+        "QComboBox::drop-down { border: none; width: 18px; }"
+        "QComboBox QAbstractItemView {"
+        "  background-color: #ffffff; border: 1px solid %11; border-radius: 8px; outline: 0; padding: 4px; }"
+
+        // ── GroupBox cards ────────────────────────────────────────────────────
+        "QGroupBox {"
+        "  border: 1px solid %4; border-radius: 12px; margin-top: 10px;"
+        "  padding: 9px 7px 7px 7px; background-color: %13; }"
+        "QGroupBox::title {"
+        "  subcontrol-origin: margin; left: 10px; padding: 0 6px; color: %14; }"
+
+        // Summary card – mirrors GroupBox visually (set via setObjectName("summaryCard"))
+        "QWidget#summaryCard {"
+        "  border: 1px solid %4; border-radius: 12px; background-color: %13; }"
+
+        // ── Labels ────────────────────────────────────────────────────────────
+        "QLabel { background: transparent; }"
+
+        // ── Table ─────────────────────────────────────────────────────────────
+        "QTableView, QTableWidget {"
+        "  background-color: #ffffff; border: 1px solid %4; border-radius: 10px;"
+        "  gridline-color: #e5ebf5; alternate-background-color: #f8fbff; }"
+        "QHeaderView::section {"
+        "  background-color: #eaf0fa; border: none; border-bottom: 1px solid #d4deee;"
+        "  padding: 5px 6px; color: %15; }"
+
+        // ── ProgressBar ───────────────────────────────────────────────────────
+        "QProgressBar {"
+        "  background-color: #e6ecf8; border: 1px solid #c6d1e3; border-radius: 8px;"
+        "  text-align: center; color: #2f425f; }"
+        "QProgressBar::chunk { background-color: %8; border-radius: 7px; }"
+
+        // ── ScrollBar ─────────────────────────────────────────────────────────
+        "QScrollBar:vertical, QScrollBar:horizontal {"
+        "  background: %16; border: none; border-radius: 7px; margin: 2px; }"
+        "QScrollBar::handle:vertical, QScrollBar::handle:horizontal {"
+        "  background: %17; border-radius: 6px; min-height: 24px; min-width: 24px; }"
+        "QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {"
+        "  background: %18; }"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,"
+        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {"
+        "  width: 0px; height: 0px; }"
+
+        // ── CheckBox ──────────────────────────────────────────────────────────
+        "QCheckBox::indicator {"
+        "  width: 14px; height: 14px; border: 1px solid #aeb9cf;"
+        "  border-radius: 5px; background: #ffffff; }"
+        "QCheckBox::indicator:checked { background: %8; border-color: %8; }"
+
+        // ── Menus ─────────────────────────────────────────────────────────────
+        "QMenuBar, QMenu { background-color: #edf2fb; border: 1px solid #d4ddef; border-radius: 8px; }"
+        "QMenuBar::item { padding: 4px 8px; border-radius: 6px; }"
+        "QMenuBar::item:selected { background-color: #dfe8f8; }"
+        "QMenu::item:selected { background-color: #dfe8f8; border-radius: 6px; }"
+
+        // ── StatusBar / Splitter ──────────────────────────────────────────────
+        "QStatusBar { background-color: #edf2fb; border-top: 1px solid #d4deee; }"
+        "QSplitter::handle { background-color: #d8e0ee; border-radius: 3px; }"
+        "QSplitter::handle:horizontal { width: 6px; }"
+        "QSplitter::handle:vertical   { height: 6px; }"
+    )
+    .arg(bg, text, btnNorm, border, btnHov, btnPrs, textMuted)   // %1 – %7
+    .arg(accent, accentDk, accentLight)                           // %8 – %10
+    .arg(borderInput, borderFoc, card, textTitle, textHead)       // %11 – %15
+    .arg(scrollBg, scrollHnd, scrollHov);                         // %16 – %18
+}
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -827,6 +955,7 @@ void MainWindow::setupUi()
 {
     setWindowTitle("Visual Frame GOP Analyzer");
     resize(1560, 920);
+    setStyleSheet(buildRoundedUiStyleSheet());
 
     QMenu *toolsMenu = menuBar()->addMenu("Tools");
     QAction *batchAnalyzeAction = toolsMenu->addAction("Batch Analyze...");
@@ -855,6 +984,8 @@ void MainWindow::setupUi()
     auto *reanalyzeButton = new QPushButton("Reanalyze", this);
     m_openLogButton = new QPushButton("Open Log", this);
     m_statusLabel = new QLabel("Ready", this);
+
+    m_analyzeButton->setProperty("accent", true);
 
     auto configureActionButton = [](QPushButton *button) {
         button->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
@@ -958,6 +1089,17 @@ void MainWindow::setupUi()
     auto *nextIButton = new QPushButton("Next I", this);
     auto *prevFrameButton = new QPushButton("Prev Frame", this);
     auto *nextFrameButton = new QPushButton("Next Frame", this);
+
+    // Capsule grouping: navigation cluster
+    prevFrameButton->setProperty("capsule", "first");
+    nextFrameButton->setProperty("capsule", "mid");
+    prevIButton->setProperty("capsule", "mid");
+    nextIButton->setProperty("capsule", "last");
+
+    // Capsule grouping: zoom cluster
+    zoomOutButton->setProperty("capsule", "first");
+    zoomResetButton->setProperty("capsule", "mid");
+    zoomInButton->setProperty("capsule", "last");
     m_zoomPercentLabel = new QLabel("100%", this);
     m_zoomSlider = new QSlider(Qt::Horizontal, this);
     m_zoomSlider->setRange(25, 800);
@@ -1057,8 +1199,11 @@ void MainWindow::setupUi()
 
     // Collapsible GOP histogram
     auto *rightPanel = new QWidget(this);
+    rightPanel->setObjectName("summaryCard");
+    rightPanel->setMinimumWidth(220);
+    rightPanel->setMaximumWidth(340);
     auto *rightPanelLayout = new QVBoxLayout(rightPanel);
-    rightPanelLayout->setContentsMargins(0, 0, 0, 0);
+    rightPanelLayout->setContentsMargins(8, 10, 8, 8);
     rightPanelLayout->setSpacing(4);
 
     auto *histToggle = new QToolButton(this);

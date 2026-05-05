@@ -314,3 +314,92 @@
 ### Impact (F-029)
 
 1. Long videos can now be narrowed to a target segment without losing positional context in the timeline.
+
+### F-030 Drag-and-drop video file loading
+
+1. Added `dragEnterEvent` and `dropEvent` handlers to `MainWindow` for accepting video file drops.
+2. Accepted formats: any single file path ending in a recognised video extension.
+3. Drop sets `m_videoPath`, updates path edit and source info in the same code path as manual file selection.
+
+### Impact (F-030)
+
+1. Users can open a video for analysis by dragging it directly from Explorer onto the application window.
+
+### F-031 Recent files quick-access combo
+
+1. Added persistent recent-files list stored in `QSettings` (key `recentFiles`, max 10 entries).
+2. Added `QComboBox` in the top toolbar row for one-click re-open of previously analyzed files.
+3. Added inline `Clear` entry at the bottom of the combo to wipe the history.
+4. Fixed combo not firing selection when the same single item is chosen by switching from `currentIndexChanged` to `activated` signal.
+
+### Impact (F-031)
+
+1. Re-opening a previously analyzed video no longer requires re-navigating the file system.
+
+### F-032 GOP size histogram widget
+
+1. Added `GopHistogramWidget` custom QWidget with auto-bucketed bar chart of GOP sizes.
+2. Added live mouse-hover tooltip showing bucket range and count.
+3. Integrated into a collapsible section in the right summary panel, default collapsed.
+
+### Impact (F-032)
+
+1. GOP size distribution is now visible as an in-app histogram without external tooling.
+
+### F-033 Enhanced video metadata (color space, bit depth, pixel format, duration)
+
+1. Switched ffprobe stream output format from CSV to key-value (`-of default=noprint_wrappers=0:nokey=0`) to prevent column-offset misparse.
+2. Added parsing of `color_space`, `bits_per_raw_sample`, `pix_fmt`, and `duration` from stream block.
+3. Added `inferBitDepthFromPixFmt()` fallback so bit depth is derived from pixel format string when raw sample depth is absent.
+4. Extended `AnalysisSummary` model and `SummaryPanel` UI with a collapsible "More Info" section showing the new fields.
+
+### Impact (F-033)
+
+1. Source panel now reports color space, bit depth, pixel format, and duration for newly analyzed videos.
+
+### F-034 Batch analysis with summary table and CSV export
+
+1. Added `Batch Analyze…` menu action to select multiple video files in one dialog.
+2. Implemented serial background analysis via `QtConcurrent::run` with per-file progress reporting.
+3. Added batch results dialog showing a sortable table (file, frames, I/P/B counts, avg bitrate, resolution, fps).
+4. Added `Export CSV…` action in the batch results dialog to save the table as a UTF-8 CSV file.
+
+### Impact (F-034)
+
+1. Multiple video files can be profiled in a single batch run and results compared or exported without switching files manually.
+
+## 2026-05-05
+
+### UI-001 Rounded widget theme (Round 1 – baseline rounded style)
+
+1. Applied global `QStyleSheet` via `buildRoundedUiStyleSheet()` in `MainWindow::setupUi()`.
+2. Rounded all major controls: buttons (8 px), inputs (8 px), group-box cards (12 px), table (10 px), progress bar (8 px), scroll handles (6 px), check-box indicator (5 px).
+3. Replaced default flat palette with a cool-blue-grey surface palette for window, card, and input backgrounds.
+
+### Impact (UI-001)
+
+1. Application visual style is consistent and modern without requiring a third-party style library.
+
+### UI-002 Accent button and card surface quality (Round 2 – refinement)
+
+1. Applied accent colour (`#5a8ddf`) to the primary `Start Analyze` button via `setProperty("accent", true")` and a dedicated `QPushButton[accent="true"]` CSS selector.
+2. Increased GroupBox card surface contrast (`#f7faff` background, `#ccd6e6` border).
+3. Refined hover / pressed states for all button and input variants.
+4. Polished alternate table row colour, header section, and scroll-bar handle appearance.
+
+### Impact (UI-002)
+
+1. Primary action button is clearly visually distinguished from secondary actions.
+2. GroupBox cards have a card-like surface that separates them from the window background.
+
+### UI-003 Theme tokens, capsule toolbar groups, and aligned side cards (Round 3 – brand polish)
+
+1. Refactored `buildRoundedUiStyleSheet()` to declare six named theme-token `const QString` variables (`bg`, `card`, `border`, `accent`, `accentDk`, `text`) plus derived tokens; entire style string uses `.arg()` substitution so future retheming requires only editing the six top-level values.
+2. Added `QPushButton[capsule="first/mid/last"]` CSS rules that selectively remove inner border-radii and borders, creating a seamless capsule grouping effect. Applied to the navigation cluster (`Prev Frame / Next Frame / Prev I / Next I`) and zoom cluster (`Zoom - / Reset / Zoom +`) in the timeline toolbar via `setProperty("capsule", …)`.
+3. Set `rightPanel->setObjectName("summaryCard")` and added matching `QWidget#summaryCard` CSS rule (same border, radius, and background as `QGroupBox`). Set matching `minimumWidth(220)` / `maximumWidth(340)` so both side panels form a consistent visual grid.
+
+### Impact (UI-003)
+
+1. Application colour scheme can be changed globally by editing six token values in one function.
+2. Navigation and zoom buttons are visually grouped as capsules for a modern toolbar appearance.
+3. Source card (left) and Summary card (right) are visually identical in border, radius, background, and width range, forming a balanced three-column layout.
