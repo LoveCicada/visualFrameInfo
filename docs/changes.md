@@ -303,3 +303,14 @@
 ### Impact (F-028)
 
 1. Users can generate standalone analysis reports for archiving or sharing without extra tooling.
+
+### F-029 Frame / time range filter
+
+1. Added a dedicated `Range` filter row above the frame table.
+2. Added start/end frame `QSpinBox` filters and start/end time `QDoubleSpinBox` filters.
+3. Added `Clear Filter` action to reset all range constraints back to unconstrained.
+4. Frames outside the active range remain visible in the timeline with reduced opacity instead of being removed.
+
+### Impact (F-029)
+
+1. Long videos can now be narrowed to a target segment without losing positional context in the timeline.

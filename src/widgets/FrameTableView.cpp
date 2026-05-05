@@ -11,6 +11,44 @@ FrameTableView::FrameTableView(QWidget *parent)
 {
     auto *mainLayout = new QVBoxLayout(this);
 
+    auto *rangeLayout = new QHBoxLayout();
+    m_startFrameFilter = new QSpinBox(this);
+    m_endFrameFilter = new QSpinBox(this);
+    m_startTimeFilter = new QDoubleSpinBox(this);
+    m_endTimeFilter = new QDoubleSpinBox(this);
+    m_clearFilterButton = new QPushButton("Clear Filter", this);
+
+    m_startFrameFilter->setRange(-1, 1000000000);
+    m_endFrameFilter->setRange(-1, 1000000000);
+    m_startFrameFilter->setSpecialValueText("Any");
+    m_endFrameFilter->setSpecialValueText("Any");
+    m_startFrameFilter->setValue(-1);
+    m_endFrameFilter->setValue(-1);
+
+    m_startTimeFilter->setRange(-1.0, 1000000.0);
+    m_endTimeFilter->setRange(-1.0, 1000000.0);
+    m_startTimeFilter->setDecimals(3);
+    m_endTimeFilter->setDecimals(3);
+    m_startTimeFilter->setSingleStep(0.5);
+    m_endTimeFilter->setSingleStep(0.5);
+    m_startTimeFilter->setSpecialValueText("Any");
+    m_endTimeFilter->setSpecialValueText("Any");
+    m_startTimeFilter->setValue(-1.0);
+    m_endTimeFilter->setValue(-1.0);
+
+    rangeLayout->addWidget(new QLabel("Range:", this));
+    rangeLayout->addWidget(new QLabel("Frame", this));
+    rangeLayout->addWidget(m_startFrameFilter);
+    rangeLayout->addWidget(new QLabel("to", this));
+    rangeLayout->addWidget(m_endFrameFilter);
+    rangeLayout->addSpacing(12);
+    rangeLayout->addWidget(new QLabel("Time (s)", this));
+    rangeLayout->addWidget(m_startTimeFilter);
+    rangeLayout->addWidget(new QLabel("to", this));
+    rangeLayout->addWidget(m_endTimeFilter);
+    rangeLayout->addWidget(m_clearFilterButton);
+    rangeLayout->addStretch();
+
     auto *filterLayout = new QHBoxLayout();
     m_typeFilter = new QComboBox(this);
     m_typeFilter->addItems(QStringList() << "All" << "I" << "P" << "B");
@@ -42,17 +80,47 @@ FrameTableView::FrameTableView(QWidget *parent)
     m_table->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
+    mainLayout->addLayout(rangeLayout);
     mainLayout->addLayout(filterLayout);
     mainLayout->addWidget(m_table);
 
     connect(m_typeFilter, SIGNAL(currentIndexChanged(int)), this, SLOT(rebuildTable()));
     connect(m_keyOnly, SIGNAL(stateChanged(int)), this, SLOT(rebuildTable()));
+    connect(m_startFrameFilter, SIGNAL(valueChanged(int)), this, SLOT(rebuildTable()));
+    connect(m_endFrameFilter, SIGNAL(valueChanged(int)), this, SLOT(rebuildTable()));
+    connect(m_startTimeFilter, SIGNAL(valueChanged(double)), this, SLOT(rebuildTable()));
+    connect(m_endTimeFilter, SIGNAL(valueChanged(double)), this, SLOT(rebuildTable()));
+    connect(m_clearFilterButton, &QPushButton::clicked, this, &FrameTableView::resetRangeFilter);
     connect(m_table, SIGNAL(cellClicked(int,int)), this, SLOT(onCellClicked(int,int)));
 }
 
 void FrameTableView::setFrames(const QVector<FrameInfo> &frames)
 {
     m_frames = frames;
+
+    if (m_frames.isEmpty()) {
+        resetRangeFilter();
+        rebuildTable();
+        return;
+    }
+
+    const int minFrame = m_frames.first().index;
+    const int maxFrame = m_frames.last().index;
+    const double maxTime = m_frames.last().ptsTime;
+
+    {
+        QSignalBlocker startFrameBlocker(m_startFrameFilter);
+        QSignalBlocker endFrameBlocker(m_endFrameFilter);
+        QSignalBlocker startTimeBlocker(m_startTimeFilter);
+        QSignalBlocker endTimeBlocker(m_endTimeFilter);
+        m_startFrameFilter->setRange(-1, maxFrame);
+        m_endFrameFilter->setRange(-1, maxFrame);
+        m_startFrameFilter->setMinimum(-1);
+        m_endFrameFilter->setMinimum(-1);
+        m_startTimeFilter->setRange(-1.0, maxTime);
+        m_endTimeFilter->setRange(-1.0, maxTime);
+    }
+
     rebuildTable();
 }
 
@@ -115,6 +183,27 @@ bool FrameTableView::accepts(const FrameInfo &frame) const
         return false;
     }
 
+    const int startFrame = m_startFrameFilter->value();
+    const int endFrame = m_endFrameFilter->value();
+    const double startTime = m_startTimeFilter->value();
+    const double endTime = m_endTimeFilter->value();
+
+    if (startFrame >= 0 && frame.index < startFrame) {
+        return false;
+    }
+
+    if (endFrame >= 0 && frame.index > endFrame) {
+        return false;
+    }
+
+    if (startTime >= 0.0 && frame.ptsTime < startTime) {
+        return false;
+    }
+
+    if (endTime >= 0.0 && frame.ptsTime > endTime) {
+        return false;
+    }
+
     return true;
 }
 
@@ -125,4 +214,23 @@ void FrameTableView::emitFilterState()
     const bool showP = (type == "All" || type == "P");
     const bool showB = (type == "All" || type == "B");
     emit filterChanged(showI, showP, showB);
+    emit rangeFilterChanged(m_startFrameFilter->value(),
+                            m_endFrameFilter->value(),
+                            m_startTimeFilter->value(),
+                            m_endTimeFilter->value());
+}
+
+void FrameTableView::resetRangeFilter()
+{
+    QSignalBlocker startFrameBlocker(m_startFrameFilter);
+    QSignalBlocker endFrameBlocker(m_endFrameFilter);
+    QSignalBlocker startTimeBlocker(m_startTimeFilter);
+    QSignalBlocker endTimeBlocker(m_endTimeFilter);
+
+    m_startFrameFilter->setValue(-1);
+    m_endFrameFilter->setValue(-1);
+    m_startTimeFilter->setValue(-1.0);
+    m_endTimeFilter->setValue(-1.0);
+
+    rebuildTable();
 }

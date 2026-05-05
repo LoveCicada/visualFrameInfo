@@ -828,6 +828,10 @@ void MainWindow::setupUi()
             [this](bool showI, bool showP, bool showB) {
                 m_timelineView->setFrameTypeFilter(showI, showP, showB);
             });
+    connect(m_frameTableView, &FrameTableView::rangeFilterChanged, this,
+            [this](int startFrame, int endFrame, double startTime, double endTime) {
+                m_timelineView->setRangeFilter(startFrame, endFrame, startTime, endTime);
+            });
     connect(m_timelineView, &TimelineView::zoomRequested, this,
             [this](double factor, int anchorFrameIndex) {
                 applyZoomFactor(m_timelineZoom * factor, anchorFrameIndex);

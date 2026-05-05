@@ -3,7 +3,10 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QMap>
+#include <QPushButton>
+#include <QSpinBox>
 #include <QTableWidget>
 #include <QWidget>
 
@@ -22,6 +25,7 @@ public:
 signals:
     void frameSelected(int frameIndex);
     void filterChanged(bool showI, bool showP, bool showB);
+    void rangeFilterChanged(int startFrame, int endFrame, double startTime, double endTime);
 
 private slots:
     void rebuildTable();
@@ -30,10 +34,16 @@ private slots:
 private:
     bool accepts(const FrameInfo &frame) const;
     void emitFilterState();
+    void resetRangeFilter();
 
 private:
     QComboBox *m_typeFilter = nullptr;
     QCheckBox *m_keyOnly = nullptr;
+    QSpinBox *m_startFrameFilter = nullptr;
+    QSpinBox *m_endFrameFilter = nullptr;
+    QDoubleSpinBox *m_startTimeFilter = nullptr;
+    QDoubleSpinBox *m_endTimeFilter = nullptr;
+    QPushButton *m_clearFilterButton = nullptr;
     QTableWidget *m_table = nullptr;
 
     QVector<FrameInfo> m_frames;

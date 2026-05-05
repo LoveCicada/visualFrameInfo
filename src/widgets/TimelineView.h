@@ -21,6 +21,7 @@ public:
 
     void setData(const QVector<FrameInfo> &frames, const QVector<GopSegment> &gops);
     void setFrameTypeFilter(bool showI, bool showP, bool showB);
+    void setRangeFilter(int startFrame, int endFrame, double startTime, double endTime);
     void setZoomFactor(double zoomFactor);
     void setSelectedFrame(int frameIndex);
     void setDensityMode(DensityMode mode);
@@ -44,6 +45,7 @@ protected:
 private:
     QColor colorForType(QChar type) const;
     bool typeVisible(QChar type) const;
+    bool rangeVisible(const FrameInfo &frame) const;
     int frameByFramePosition(int framePos) const;
     int frameByGopPosition(int gopPos) const;
     void updateCanvasSize();
@@ -54,6 +56,10 @@ private:
     bool m_showI = true;
     bool m_showP = true;
     bool m_showB = true;
+    int m_rangeStartFrame = -1;
+    int m_rangeEndFrame = -1;
+    double m_rangeStartTime = -1.0;
+    double m_rangeEndTime = -1.0;
     DensityMode m_densityMode = FrameMode;
     double m_zoomFactor = 1.0;
     int m_selectedFrame = -1;

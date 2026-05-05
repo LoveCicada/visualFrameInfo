@@ -166,6 +166,13 @@ Use this checklist when validating overwrite upgrade installation behavior.
 4. Report sections: Source Info, Frame Statistics (counts + ratios), GOP Statistics (count + avg/min/max size).
 5. Timestamp line records the export time for auditability.
 
+## Frame / Time Range Filter Notes
+
+1. Range controls live above the frame table and support frame index and `pts_time` constraints independently.
+2. `Any` means unconstrained for each field; users can combine frame and time filters.
+3. `Clear Filter` resets all four range inputs to unconstrained state.
+4. Timeline bars outside the active range are dimmed instead of hidden so GOP/frame position context is preserved.
+
 ## Benchmark Outputs
 
 1. In-app `Run Benchmark` appends comparison rows to `logs/benchmark/benchmark_comparison.tsv`.

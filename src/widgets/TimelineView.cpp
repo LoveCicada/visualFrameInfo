@@ -42,6 +42,15 @@ void TimelineView::setFrameTypeFilter(bool showI, bool showP, bool showB)
     update();
 }
 
+void TimelineView::setRangeFilter(int startFrame, int endFrame, double startTime, double endTime)
+{
+    m_rangeStartFrame = startFrame;
+    m_rangeEndFrame = endFrame;
+    m_rangeStartTime = startTime;
+    m_rangeEndTime = endTime;
+    update();
+}
+
 void TimelineView::setZoomFactor(double zoomFactor)
 {
     m_zoomFactor = qBound(0.25, zoomFactor, 8.0);
@@ -149,7 +158,11 @@ void TimelineView::paintEvent(QPaintEvent *)
             }
             const int typeBarTop = barTop + (barHeight - typeBarHeight);
             QRect barRect(x, typeBarTop, m_barWidth, typeBarHeight);
-            painter.fillRect(barRect, colorForType(frame.type));
+            QColor frameColor = colorForType(frame.type);
+            if (!rangeVisible(frame)) {
+                frameColor.setAlpha(70);
+            }
+            painter.fillRect(barRect, frameColor);
 
             if (frame.type == QChar('B') && m_bFrameSeparatorEnabled) {
                 QPen dashPen(QColor(223, 236, 248, 210), 1, Qt::DashLine);
@@ -186,9 +199,13 @@ void TimelineView::paintEvent(QPaintEvent *)
             int iCount = 0;
             int pCount = 0;
             int bCount = 0;
+            int visibleCount = 0;
             for (const FrameInfo &frame : m_frames) {
                 if (frame.index < seg.startFrame || frame.index > seg.endFrame) {
                     continue;
+                }
+                if (rangeVisible(frame)) {
+                    ++visibleCount;
                 }
                 if (frame.type == QChar('I')) {
                     ++iCount;
@@ -208,16 +225,37 @@ void TimelineView::paintEvent(QPaintEvent *)
             }
 
             int drawY = barTop;
+            const int totalVisible = qMax(0, visibleCount);
+            const bool fullyFiltered = (totalVisible == 0);
+            const bool partiallyFiltered = (totalVisible > 0 && totalVisible < total);
             if (iHeight > 0) {
-                painter.fillRect(QRect(x, drawY, m_gopWidth, iHeight), colorForType(QChar('I')));
+                QColor color = colorForType(QChar('I'));
+                if (fullyFiltered) {
+                    color.setAlpha(70);
+                } else if (partiallyFiltered) {
+                    color.setAlpha(150);
+                }
+                painter.fillRect(QRect(x, drawY, m_gopWidth, iHeight), color);
                 drawY += iHeight;
             }
             if (pHeight > 0) {
-                painter.fillRect(QRect(x, drawY, m_gopWidth, pHeight), colorForType(QChar('P')));
+                QColor color = colorForType(QChar('P'));
+                if (fullyFiltered) {
+                    color.setAlpha(70);
+                } else if (partiallyFiltered) {
+                    color.setAlpha(150);
+                }
+                painter.fillRect(QRect(x, drawY, m_gopWidth, pHeight), color);
                 drawY += pHeight;
             }
             if (drawY < barTop + barHeight) {
-                painter.fillRect(QRect(x, drawY, m_gopWidth, barTop + barHeight - drawY), colorForType(QChar('B')));
+                QColor color = colorForType(QChar('B'));
+                if (fullyFiltered) {
+                    color.setAlpha(70);
+                } else if (partiallyFiltered) {
+                    color.setAlpha(150);
+                }
+                painter.fillRect(QRect(x, drawY, m_gopWidth, barTop + barHeight - drawY), color);
             }
 
             painter.setPen(QColor(255, 255, 255, 22));
@@ -380,6 +418,27 @@ bool TimelineView::typeVisible(QChar type) const
     if (type == QChar('B')) {
         return m_showB;
     }
+    return true;
+}
+
+bool TimelineView::rangeVisible(const FrameInfo &frame) const
+{
+    if (m_rangeStartFrame >= 0 && frame.index < m_rangeStartFrame) {
+        return false;
+    }
+
+    if (m_rangeEndFrame >= 0 && frame.index > m_rangeEndFrame) {
+        return false;
+    }
+
+    if (m_rangeStartTime >= 0.0 && frame.ptsTime < m_rangeStartTime) {
+        return false;
+    }
+
+    if (m_rangeEndTime >= 0.0 && frame.ptsTime > m_rangeEndTime) {
+        return false;
+    }
+
     return true;
 }
 
