@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QKeyEvent>
 #include <QMainWindow>
+#include <QToolButton>
 #include <QPushButton>
 #include <QVector>
 
@@ -56,6 +57,8 @@ private:
     void setupUi();
     void updateSourceInfo();
     void clearResultViews();
+    void addRecentFile(const QString &path);
+    void rebuildRecentMenu();
     bool loadAnalysisLog(const QString &logPath, const QString &sourceVideoPath = QString());
     int currentSelectedFrameIndex() const;
     void selectFrameByOffset(int offset);
@@ -90,6 +93,8 @@ private:
     QLabel *m_fpsValue = nullptr;
     QLabel *m_logPathValue = nullptr;
     QLabel *m_bitrateValue = nullptr;
+
+    QToolButton *m_recentButton = nullptr;
 
     QScrollArea *m_timelineScrollArea = nullptr;
     TimelineView *m_timelineView = nullptr;

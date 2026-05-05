@@ -27,7 +27,10 @@
 #include <QTextStream>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QMenu>
 #include <QMimeData>
+#include <QSettings>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrentRun>
@@ -196,6 +199,7 @@ void MainWindow::startAnalysis()
 
         m_openLogButton->setEnabled(true);
         m_logPathValue->setText(m_logPath);
+        addRecentFile(m_videoPath);
         updateSourceInfo();
         syncOverviewRange();
         updatePreviewToggleState();
@@ -568,6 +572,12 @@ void MainWindow::setupUi()
     auto *topRowPrimary = new QHBoxLayout();
     auto *topRowSecondary = new QHBoxLayout();
     auto *chooseButton = new QPushButton("Select Video", this);
+    m_recentButton = new QToolButton(this);
+    m_recentButton->setText("v");
+    m_recentButton->setToolTip("Recent files");
+    m_recentButton->setPopupMode(QToolButton::InstantPopup);
+    m_recentButton->setMenu(new QMenu(m_recentButton));
+    rebuildRecentMenu();
     m_videoPathEdit = new QLineEdit(this);
     m_analyzeButton = new QPushButton("Start Analyze", this);
     m_benchmarkButton = new QPushButton("Run Benchmark", this);
@@ -599,6 +609,7 @@ void MainWindow::setupUi()
 
     // Keep file selection on the first row, and group analysis actions on the second row.
     topRowPrimary->addWidget(chooseButton);
+    topRowPrimary->addWidget(m_recentButton);
     topRowPrimary->addWidget(m_videoPathEdit, 1);
 
     topRowSecondary->addWidget(m_analyzeButton);
@@ -1123,6 +1134,59 @@ void MainWindow::selectAdjacentIFrame(int direction)
         }
     }
 }
+
+// ── Recent files ────────────────────────────────────────────────────────────
+
+static const int kMaxRecentFiles = 10;
+static const char kRecentKey[]   = "recentFiles";
+
+void MainWindow::addRecentFile(const QString &path)
+{
+    if (path.isEmpty()) {
+        return;
+    }
+    QSettings settings;
+    QStringList files = settings.value(kRecentKey).toStringList();
+    files.removeAll(path);
+    files.prepend(path);
+    while (files.size() > kMaxRecentFiles) {
+        files.removeLast();
+    }
+    settings.setValue(kRecentKey, files);
+    rebuildRecentMenu();
+}
+
+void MainWindow::rebuildRecentMenu()
+{
+    if (!m_recentButton) {
+        return;
+    }
+    QMenu *menu = m_recentButton->menu();
+    menu->clear();
+
+    QSettings settings;
+    const QStringList files = settings.value(kRecentKey).toStringList();
+    if (files.isEmpty()) {
+        auto *empty = menu->addAction("(No recent files)");
+        empty->setEnabled(false);
+        return;
+    }
+    for (const QString &file : files) {
+        menu->addAction(QFileInfo(file).fileName(), this, [this, file]() {
+            m_videoPath = file;
+            m_videoPathEdit->setText(file);
+            m_videoPathEdit->setToolTip(file);
+            updateSourceInfo();
+        })->setToolTip(file);
+    }
+    menu->addSeparator();
+    menu->addAction("Clear recent files", this, [this]() {
+        QSettings().remove(kRecentKey);
+        rebuildRecentMenu();
+    });
+}
+
+// ── Drag and drop ────────────────────────────────────────────────────────────
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 {
