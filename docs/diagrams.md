@@ -25,8 +25,8 @@ graph LR
     MW --> FT[FrameTableView]
 
     FR --> LOG[(showinfo.log)]
-    SP --> M1[(FrameInfo[])]
-    SP --> M2[(GopSegment[])]
+    SP --> M1[(FrameInfo list)]
+    SP --> M2[(GopSegment list)]
     SP --> M3[(AnalysisSummary)]
 ```
 
