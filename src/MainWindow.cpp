@@ -25,6 +25,9 @@
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTextStream>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrentRun>
@@ -83,6 +86,7 @@ struct FrameCaptureResult {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    setAcceptDrops(true);
     setupUi();
     clearResultViews();
 }
@@ -1118,6 +1122,48 @@ void MainWindow::selectAdjacentIFrame(int direction)
             return;
         }
     }
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        const QList<QUrl> urls = event->mimeData()->urls();
+        if (!urls.isEmpty()) {
+            const QString path = urls.first().toLocalFile();
+            const QString ext = QFileInfo(path).suffix().toLower();
+            static const QStringList videoExts = {"mp4", "mov", "mkv", "avi", "mxf"};
+            static const QStringList logExts   = {"log", "txt"};
+            if (videoExts.contains(ext) || logExts.contains(ext)) {
+                event->acceptProposedAction();
+                return;
+            }
+        }
+    }
+    event->ignore();
+}
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    if (!event->mimeData()->hasUrls()) {
+        event->ignore();
+        return;
+    }
+    const QString path = event->mimeData()->urls().first().toLocalFile();
+    if (path.isEmpty()) {
+        event->ignore();
+        return;
+    }
+    const QString ext = QFileInfo(path).suffix().toLower();
+    static const QStringList videoExts = {"mp4", "mov", "mkv", "avi", "mxf"};
+    if (videoExts.contains(ext)) {
+        m_videoPath = path;
+        m_videoPathEdit->setText(path);
+        m_videoPathEdit->setToolTip(path);
+        updateSourceInfo();
+    } else {
+        loadAnalysisLog(path);
+    }
+    event->acceptProposedAction();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)

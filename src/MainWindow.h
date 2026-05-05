@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QCheckBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QLabel>
 #include <QKeyEvent>
 #include <QMainWindow>
@@ -65,6 +67,8 @@ private:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
     QLineEdit *m_videoPathEdit = nullptr;
