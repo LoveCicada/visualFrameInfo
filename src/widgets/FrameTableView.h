@@ -48,6 +48,10 @@ private:
 
     QVector<FrameInfo> m_frames;
     QMap<int, int> m_rowToFrameIndex;
+    int m_minFrame = 0;
+    int m_maxFrame = 0;
+    double m_minTime = 0.0;
+    double m_maxTime = 0.0;
 };
 
 #endif // FRAMETABLEVIEW_H
