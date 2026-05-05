@@ -152,6 +152,12 @@ Use this checklist when validating overwrite upgrade installation behavior.
 2. Newly generated analysis logs include `pkt_size` and can populate `Average Bitrate` in Source panel.
 3. Historical logs generated before this feature may miss `pkt_size`; in that case UI displays `-`.
 
+## CSV Export Feature Notes
+
+1. Use toolbar action `Export CSV...` after analysis completes.
+2. Frame CSV exports columns: `index, pts_time, type, isKey, gopIndex, indexInGop, durationTime, pktSize`.
+3. After frame export, UI prompts whether to export GOP summary CSV.
+
 ## Benchmark Outputs
 
 1. In-app `Run Benchmark` appends comparison rows to `logs/benchmark/benchmark_comparison.tsv`.

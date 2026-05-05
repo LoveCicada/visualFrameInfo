@@ -281,3 +281,14 @@
 
 1. Source panel now shows end-to-end estimated average bitrate for newly analyzed videos.
 2. Bitrate calculation is now performed in parser/service data pipeline rather than UI-layer placeholders.
+
+### F-027 Frame and GOP data CSV export
+
+1. Added toolbar action `Export CSV...` in the main window.
+2. Implemented frame-level CSV export fields: `index, pts_time, type, isKey, gopIndex, indexInGop, durationTime, pktSize`.
+3. Added optional second export for GOP summary CSV fields: `gopIndex, startFrame, endFrame, size, startTime, endTime`.
+4. Added default output naming `<video_stem>_frames.csv` and sibling GOP file suffix `_gops.csv`.
+
+### Impact (F-027)
+
+1. Users can now post-process frame and GOP data in spreadsheet or scripting workflows.

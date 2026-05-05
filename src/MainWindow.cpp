@@ -3,6 +3,8 @@
 #include <QDesktopServices>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
@@ -21,6 +23,7 @@
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QTextStream>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrentRun>
@@ -297,6 +300,86 @@ void MainWindow::runBenchmark()
     }));
 }
 
+void MainWindow::exportFrameCsv()
+{
+    if (m_frames.isEmpty()) {
+        QMessageBox::information(this, "No data", "No frame data is available. Please run analysis first.");
+        return;
+    }
+
+    const QString basePath = !m_videoPath.isEmpty() ? m_videoPath : m_logPath;
+    const QFileInfo baseInfo(basePath);
+    const QString stem = baseInfo.completeBaseName().isEmpty() ? QString("analysis") : baseInfo.completeBaseName();
+    const QString dirPath = baseInfo.absolutePath().isEmpty() ? QString() : baseInfo.absolutePath();
+    const QString defaultPath = dirPath.isEmpty()
+                                    ? QString("%1_frames.csv").arg(stem)
+                                    : QDir(dirPath).filePath(QString("%1_frames.csv").arg(stem));
+
+    const QString frameCsvPath = QFileDialog::getSaveFileName(this,
+                                                              "Export Frame CSV",
+                                                              defaultPath,
+                                                              "CSV Files (*.csv)");
+    if (frameCsvPath.isEmpty()) {
+        return;
+    }
+
+    QFile frameFile(frameCsvPath);
+    if (!frameFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        QMessageBox::critical(this, "Export failed", QString("Cannot write file:\n%1").arg(frameCsvPath));
+        return;
+    }
+
+    QTextStream frameOut(&frameFile);
+    frameOut << "index,pts_time,type,isKey,gopIndex,indexInGop,durationTime,pktSize\n";
+    for (const FrameInfo &frame : m_frames) {
+        frameOut << frame.index << ','
+                 << QString::number(frame.ptsTime, 'f', 6) << ','
+                 << frame.type << ','
+                 << (frame.isKey ? 1 : 0) << ','
+                 << frame.gopIndex << ','
+                 << frame.indexInGop << ','
+                 << QString::number(frame.durationTime, 'f', 6) << ','
+                 << frame.sizeInBytes << '\n';
+    }
+    frameFile.close();
+
+    QString exportedMessage = QString("Frame CSV exported:\n%1").arg(frameCsvPath);
+
+    const QMessageBox::StandardButton exportGop = QMessageBox::question(
+        this,
+        "Export GOP Summary",
+        "Do you also want to export GOP summary CSV?",
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+
+    if (exportGop == QMessageBox::Yes && !m_gops.isEmpty()) {
+        const QFileInfo frameCsvInfo(frameCsvPath);
+        const QString gopPath = QDir(frameCsvInfo.absolutePath())
+                                    .filePath(frameCsvInfo.completeBaseName() + "_gops.csv");
+
+        QFile gopFile(gopPath);
+        if (!gopFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+            QMessageBox::critical(this, "Export failed", QString("Cannot write file:\n%1").arg(gopPath));
+            return;
+        }
+
+        QTextStream gopOut(&gopFile);
+        gopOut << "gopIndex,startFrame,endFrame,size,startTime,endTime\n";
+        for (const GopSegment &gop : m_gops) {
+            gopOut << gop.gopIndex << ','
+                   << gop.startFrame << ','
+                   << gop.endFrame << ','
+                   << gop.size << ','
+                   << QString::number(gop.startTime, 'f', 6) << ','
+                   << QString::number(gop.endTime, 'f', 6) << '\n';
+        }
+        gopFile.close();
+        exportedMessage += QString("\nGOP CSV exported:\n%1").arg(gopPath);
+    }
+
+    QMessageBox::information(this, "Export complete", exportedMessage);
+}
+
 void MainWindow::openLogFile()
 {
     if (m_logPath.isEmpty()) {
@@ -357,6 +440,7 @@ void MainWindow::setupUi()
     m_analyzeButton = new QPushButton("Start Analyze", this);
     m_benchmarkButton = new QPushButton("Run Benchmark", this);
     m_openAnalysisLogButton = new QPushButton("Open Analysis Log", this);
+    auto *exportCsvButton = new QPushButton("Export CSV...", this);
     auto *reanalyzeButton = new QPushButton("Reanalyze", this);
     m_openLogButton = new QPushButton("Open Log", this);
     m_statusLabel = new QLabel("Ready", this);
@@ -369,6 +453,7 @@ void MainWindow::setupUi()
     configureActionButton(m_analyzeButton);
     configureActionButton(m_benchmarkButton);
     configureActionButton(m_openAnalysisLogButton);
+    configureActionButton(exportCsvButton);
     configureActionButton(reanalyzeButton);
     configureActionButton(m_openLogButton);
     m_videoPathEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -386,6 +471,7 @@ void MainWindow::setupUi()
     topRowSecondary->addWidget(reanalyzeButton);
     topRowSecondary->addWidget(m_benchmarkButton);
     topRowSecondary->addWidget(m_openAnalysisLogButton);
+    topRowSecondary->addWidget(exportCsvButton);
     topRowSecondary->addWidget(m_openLogButton);
     topRowSecondary->addStretch(1);
 
@@ -557,6 +643,7 @@ void MainWindow::setupUi()
     connect(m_openAnalysisLogButton, SIGNAL(clicked()), this, SLOT(chooseLogFile()));
     connect(m_analyzeButton, SIGNAL(clicked()), this, SLOT(startAnalysis()));
     connect(m_benchmarkButton, SIGNAL(clicked()), this, SLOT(runBenchmark()));
+    connect(exportCsvButton, SIGNAL(clicked()), this, SLOT(exportFrameCsv()));
     connect(reanalyzeButton, SIGNAL(clicked()), this, SLOT(startAnalysis()));
     connect(m_openLogButton, SIGNAL(clicked()), this, SLOT(openLogFile()));
     connect(m_timelineView, SIGNAL(frameSelected(int)), this, SLOT(onFrameSelected(int)));
