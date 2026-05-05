@@ -137,6 +137,32 @@ bool parseFpsFromFraction(const QString &fractionText, double &fpsValue, QString
     fpsText = QString::number(fpsValue, 'f', 3) + " fps";
     return true;
 }
+
+bool isMeaningfulMetadataValue(const QString &value)
+{
+    const QString trimmed = value.trimmed();
+    return !trimmed.isEmpty() && trimmed != "unknown" && trimmed != "N/A";
+}
+
+int inferBitDepthFromPixFmt(const QString &pixFmt)
+{
+    if (pixFmt.isEmpty()) {
+        return 0;
+    }
+
+    // Common ffmpeg formats: yuv420p, yuv420p10le, p010le, gbrp12le
+    const QRegularExpression depthInPixFmtRe("p(\\d+)(?:le|be)?$");
+    const QRegularExpressionMatch depthMatch = depthInPixFmtRe.match(pixFmt);
+    if (depthMatch.hasMatch()) {
+        const int depth = depthMatch.captured(1).toInt();
+        if (depth > 0) {
+            return depth;
+        }
+    }
+
+    // No explicit depth in pix_fmt usually means 8-bit.
+    return 8;
+}
 }
 
 bool ShowInfoParser::parseFile(const QString &logPath, QVector<FrameInfo> &frames, QString &errorMessage)
@@ -310,38 +336,54 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
             // stream,{codec_name},{width},{height},{avg_frame_rate},{r_frame_rate},...
             if (line.startsWith("stream,")) {
                 const QStringList parts = line.split(',');
-                if (summary.codec.isEmpty() && parts.size() >= 2 && !parts.at(1).isEmpty()) {
-                    summary.codec = parts.at(1).toUpper();
-                }
-                if (summary.resolution.isEmpty() && parts.size() >= 4
-                    && !parts.at(2).isEmpty() && !parts.at(3).isEmpty()) {
-                    summary.resolution = parts.at(2) + "x" + parts.at(3);
-                }
-                if (summary.fpsText.isEmpty() && parts.size() >= 5 && !parts.at(4).isEmpty()) {
-                    parseFpsFromFraction(parts.at(4), summary.fpsValue, summary.fpsText);
-                }
-                if (summary.fpsText.isEmpty() && parts.size() >= 6 && !parts.at(5).isEmpty()) {
-                    parseFpsFromFraction(parts.at(5), summary.fpsValue, summary.fpsText);
-                }
-                // Enhanced metadata (F8): duration, color_space, bits_per_raw_sample, pix_fmt
-                if (summary.durationSeconds <= 0.0 && parts.size() >= 7 && !parts.at(6).isEmpty()) {
-                    const double d = parts.at(6).toDouble();
-                    if (d > 0.0) { summary.durationSeconds = d; }
-                }
-                if (summary.colorSpace.isEmpty() && parts.size() >= 8) {
-                    const QString cs = parts.at(7).trimmed();
-                    if (!cs.isEmpty() && cs != "unknown" && cs != "N/A") {
-                        summary.colorSpace = cs;
+                // Some ffprobe versions prepend stream index/type in CSV output.
+                // Parse the selected stream fields from the tail to avoid offset mismatch.
+                if (parts.size() >= 10) {
+                    const int n = parts.size();
+                    const QString codecName = parts.at(n - 9).trimmed();
+                    const QString width = parts.at(n - 8).trimmed();
+                    const QString height = parts.at(n - 7).trimmed();
+                    const QString avgFrameRate = parts.at(n - 6).trimmed();
+                    const QString rFrameRate = parts.at(n - 5).trimmed();
+                    const QString duration = parts.at(n - 4).trimmed();
+                    const QString colorSpace = parts.at(n - 3).trimmed();
+                    const QString bitsPerRawSample = parts.at(n - 2).trimmed();
+                    const QString pixFmt = parts.at(n - 1).trimmed();
+
+                    if (summary.codec.isEmpty() && !codecName.isEmpty()) {
+                        summary.codec = codecName.toUpper();
                     }
-                }
-                if (summary.bitDepth == 0 && parts.size() >= 9) {
-                    const int bd = parts.at(8).toInt();
-                    if (bd > 0) { summary.bitDepth = bd; }
-                }
-                if (summary.pixFmt.isEmpty() && parts.size() >= 10) {
-                    const QString pf = parts.at(9).trimmed();
-                    if (!pf.isEmpty() && pf != "unknown" && pf != "N/A") {
-                        summary.pixFmt = pf;
+                    if (summary.resolution.isEmpty() && !width.isEmpty() && !height.isEmpty()) {
+                        summary.resolution = width + "x" + height;
+                    }
+                    if (summary.fpsText.isEmpty() && !avgFrameRate.isEmpty()) {
+                        parseFpsFromFraction(avgFrameRate, summary.fpsValue, summary.fpsText);
+                    }
+                    if (summary.fpsText.isEmpty() && !rFrameRate.isEmpty()) {
+                        parseFpsFromFraction(rFrameRate, summary.fpsValue, summary.fpsText);
+                    }
+
+                    if (summary.durationSeconds <= 0.0 && !duration.isEmpty()) {
+                        const double d = duration.toDouble();
+                        if (d > 0.0) {
+                            summary.durationSeconds = d;
+                        }
+                    }
+                    if (summary.colorSpace.isEmpty() && isMeaningfulMetadataValue(colorSpace)) {
+                        summary.colorSpace = colorSpace;
+                    }
+                    if (summary.pixFmt.isEmpty() && isMeaningfulMetadataValue(pixFmt)) {
+                        summary.pixFmt = pixFmt;
+                    }
+
+                    if (summary.bitDepth == 0) {
+                        const int bd = bitsPerRawSample.toInt();
+                        if (bd > 0) {
+                            summary.bitDepth = bd;
+                        }
+                    }
+                    if (summary.bitDepth == 0 && !summary.pixFmt.isEmpty()) {
+                        summary.bitDepth = inferBitDepthFromPixFmt(summary.pixFmt);
                     }
                 }
                 continue;
@@ -378,7 +420,7 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
                     }
                     if (summary.colorSpace.isEmpty()) {
                         const QString cs = ffprobeStreamFields.value("color_space");
-                        if (!cs.isEmpty() && cs != "unknown" && cs != "N/A") {
+                        if (isMeaningfulMetadataValue(cs)) {
                             summary.colorSpace = cs;
                         }
                     }
@@ -388,9 +430,12 @@ AnalysisSummary ShowInfoParser::buildSummary(const QString &videoPath,
                     }
                     if (summary.pixFmt.isEmpty()) {
                         const QString pf = ffprobeStreamFields.value("pix_fmt");
-                        if (!pf.isEmpty() && pf != "unknown" && pf != "N/A") {
+                        if (isMeaningfulMetadataValue(pf)) {
                             summary.pixFmt = pf;
                         }
+                    }
+                    if (summary.bitDepth == 0 && !summary.pixFmt.isEmpty()) {
+                        summary.bitDepth = inferBitDepthFromPixFmt(summary.pixFmt);
                     }
 
                     if (summary.fpsText.isEmpty()) {

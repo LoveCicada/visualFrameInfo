@@ -104,7 +104,7 @@ void SummaryPanel::setSummary(const AnalysisSummary &summary)
         ? QString("%1 kbps").arg(summary.averageBitrate, 0, 'f', 1) : "-");
     m_colorSpaceValue->setText(summary.colorSpace.isEmpty() ? "-" : summary.colorSpace);
     m_bitDepthValue->setText(summary.bitDepth > 0 ? QString::number(summary.bitDepth) + " bit" : "-");
-    m_pixFmtValue->setText(summary.pixFmt.isEmpty() ? "-" : summary.pixFmt);
+    m_pixFmtValue->setText(summary.pixFmt.isEmpty() ? "-" : summary.pixFmt.toUpper());
 }
 
 void SummaryPanel::clearSummary()
