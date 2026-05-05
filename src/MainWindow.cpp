@@ -3,6 +3,7 @@
 #include <QDesktopServices>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
@@ -380,6 +381,133 @@ void MainWindow::exportFrameCsv()
     QMessageBox::information(this, "Export complete", exportedMessage);
 }
 
+void MainWindow::exportAnalysisReport()
+{
+    if (m_frames.isEmpty()) {
+        QMessageBox::information(this, "No data", "No analysis result is available. Please run analysis first.");
+        return;
+    }
+
+    const QString basePath = !m_videoPath.isEmpty() ? m_videoPath : m_logPath;
+    const QFileInfo baseInfo(basePath);
+    const QString stem = baseInfo.completeBaseName().isEmpty() ? QString("analysis") : baseInfo.completeBaseName();
+    const QString dirPath = baseInfo.absolutePath().isEmpty() ? QString() : baseInfo.absolutePath();
+    const QString defaultPath = dirPath.isEmpty()
+                                    ? QString("%1_report.txt").arg(stem)
+                                    : QDir(dirPath).filePath(QString("%1_report.txt").arg(stem));
+
+    const QString reportPath = QFileDialog::getSaveFileName(this,
+                                                            "Export Analysis Report",
+                                                            defaultPath,
+                                                            "Text Report (*.txt);;HTML Report (*.html *.htm)");
+    if (reportPath.isEmpty()) {
+        return;
+    }
+
+    QString finalPath = reportPath;
+    const QFileInfo selectedInfo(reportPath);
+    QString suffix = selectedInfo.suffix().toLower();
+    bool asHtml = (suffix == "html" || suffix == "htm");
+    if (suffix.isEmpty()) {
+        asHtml = false;
+        finalPath += ".txt";
+    }
+
+    const int total = m_summary.totalFrames;
+    const auto ratioOf = [total](int count) {
+        if (total <= 0) {
+            return 0.0;
+        }
+        return static_cast<double>(count) * 100.0 / static_cast<double>(total);
+    };
+
+    const QString generatedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
+    QString report;
+
+    if (asHtml) {
+        report += "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Analysis Report</title>";
+        report += "<style>body{font-family:Segoe UI,Arial,sans-serif;line-height:1.5;padding:20px;}";
+        report += "h1,h2{margin:0 0 10px 0;}table{border-collapse:collapse;margin:10px 0 20px 0;}";
+        report += "th,td{border:1px solid #cccccc;padding:6px 10px;text-align:left;}";
+        report += "th{background:#f5f5f5;}</style></head><body>";
+        report += "<h1>visualFrameInfo Analysis Report</h1>";
+        report += QString("<p><b>Generated:</b> %1</p>").arg(generatedAt.toHtmlEscaped());
+
+        report += "<h2>Video Metadata</h2><table>";
+        report += QString("<tr><th>Video Path</th><td>%1</td></tr>").arg(m_summary.filePath.toHtmlEscaped());
+        report += QString("<tr><th>Log Path</th><td>%1</td></tr>").arg(m_summary.logPath.toHtmlEscaped());
+        report += QString("<tr><th>Codec</th><td>%1</td></tr>").arg(m_summary.codec.toHtmlEscaped());
+        report += QString("<tr><th>Resolution</th><td>%1</td></tr>").arg(m_summary.resolution.toHtmlEscaped());
+        report += QString("<tr><th>FPS</th><td>%1</td></tr>").arg(m_summary.fpsText.toHtmlEscaped());
+        report += QString("<tr><th>Average Bitrate (kbps)</th><td>%1</td></tr>")
+                      .arg(QString::number(m_summary.averageBitrate, 'f', 2));
+        report += "</table>";
+
+        report += "<h2>Frame Type Statistics</h2><table>";
+        report += QString("<tr><th>Total Frames</th><td>%1</td></tr>").arg(m_summary.totalFrames);
+        report += QString("<tr><th>I Frames</th><td>%1 (%2%)</td></tr>")
+                      .arg(m_summary.iCount)
+                      .arg(QString::number(ratioOf(m_summary.iCount), 'f', 2));
+        report += QString("<tr><th>P Frames</th><td>%1 (%2%)</td></tr>")
+                      .arg(m_summary.pCount)
+                      .arg(QString::number(ratioOf(m_summary.pCount), 'f', 2));
+        report += QString("<tr><th>B Frames</th><td>%1 (%2%)</td></tr>")
+                      .arg(m_summary.bCount)
+                      .arg(QString::number(ratioOf(m_summary.bCount), 'f', 2));
+        report += "</table>";
+
+        report += "<h2>GOP Statistics</h2><table>";
+        report += QString("<tr><th>GOP Count</th><td>%1</td></tr>").arg(m_summary.gopCount);
+        report += QString("<tr><th>Min GOP Size</th><td>%1</td></tr>").arg(m_summary.minGopSize);
+        report += QString("<tr><th>Max GOP Size</th><td>%1</td></tr>").arg(m_summary.maxGopSize);
+        report += QString("<tr><th>Avg GOP Size</th><td>%1</td></tr>")
+                      .arg(QString::number(m_summary.avgGopSize, 'f', 2));
+        report += QString("<tr><th>Avg GOP Interval (frames)</th><td>%1</td></tr>")
+                      .arg(QString::number(m_summary.avgGopIntervalFrames, 'f', 2));
+        report += QString("<tr><th>Avg GOP Interval (seconds)</th><td>%1</td></tr>")
+                      .arg(QString::number(m_summary.avgGopIntervalSeconds, 'f', 3));
+        report += "</table></body></html>";
+    } else {
+        QTextStream out(&report);
+        out << "visualFrameInfo Analysis Report\n";
+        out << "Generated: " << generatedAt << "\n\n";
+
+        out << "[Video Metadata]\n";
+        out << "Video Path: " << m_summary.filePath << "\n";
+        out << "Log Path: " << m_summary.logPath << "\n";
+        out << "Codec: " << m_summary.codec << "\n";
+        out << "Resolution: " << m_summary.resolution << "\n";
+        out << "FPS: " << m_summary.fpsText << "\n";
+        out << "Average Bitrate (kbps): " << QString::number(m_summary.averageBitrate, 'f', 2) << "\n\n";
+
+        out << "[Frame Type Statistics]\n";
+        out << "Total Frames: " << m_summary.totalFrames << "\n";
+        out << "I Frames: " << m_summary.iCount << " (" << QString::number(ratioOf(m_summary.iCount), 'f', 2) << "%)\n";
+        out << "P Frames: " << m_summary.pCount << " (" << QString::number(ratioOf(m_summary.pCount), 'f', 2) << "%)\n";
+        out << "B Frames: " << m_summary.bCount << " (" << QString::number(ratioOf(m_summary.bCount), 'f', 2) << "%)\n\n";
+
+        out << "[GOP Statistics]\n";
+        out << "GOP Count: " << m_summary.gopCount << "\n";
+        out << "Min GOP Size: " << m_summary.minGopSize << "\n";
+        out << "Max GOP Size: " << m_summary.maxGopSize << "\n";
+        out << "Avg GOP Size: " << QString::number(m_summary.avgGopSize, 'f', 2) << "\n";
+        out << "Avg GOP Interval (frames): " << QString::number(m_summary.avgGopIntervalFrames, 'f', 2) << "\n";
+        out << "Avg GOP Interval (seconds): " << QString::number(m_summary.avgGopIntervalSeconds, 'f', 3) << "\n";
+    }
+
+    QFile reportFile(finalPath);
+    if (!reportFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        QMessageBox::critical(this, "Export failed", QString("Cannot write file:\n%1").arg(finalPath));
+        return;
+    }
+
+    QTextStream reportOut(&reportFile);
+    reportOut << report;
+    reportFile.close();
+
+    QMessageBox::information(this, "Export complete", QString("Report exported:\n%1").arg(finalPath));
+}
+
 void MainWindow::openLogFile()
 {
     if (m_logPath.isEmpty()) {
@@ -441,6 +569,7 @@ void MainWindow::setupUi()
     m_benchmarkButton = new QPushButton("Run Benchmark", this);
     m_openAnalysisLogButton = new QPushButton("Open Analysis Log", this);
     auto *exportCsvButton = new QPushButton("Export CSV...", this);
+    auto *exportReportButton = new QPushButton("Export Report...", this);
     auto *reanalyzeButton = new QPushButton("Reanalyze", this);
     m_openLogButton = new QPushButton("Open Log", this);
     m_statusLabel = new QLabel("Ready", this);
@@ -454,6 +583,7 @@ void MainWindow::setupUi()
     configureActionButton(m_benchmarkButton);
     configureActionButton(m_openAnalysisLogButton);
     configureActionButton(exportCsvButton);
+    configureActionButton(exportReportButton);
     configureActionButton(reanalyzeButton);
     configureActionButton(m_openLogButton);
     m_videoPathEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -472,6 +602,7 @@ void MainWindow::setupUi()
     topRowSecondary->addWidget(m_benchmarkButton);
     topRowSecondary->addWidget(m_openAnalysisLogButton);
     topRowSecondary->addWidget(exportCsvButton);
+    topRowSecondary->addWidget(exportReportButton);
     topRowSecondary->addWidget(m_openLogButton);
     topRowSecondary->addStretch(1);
 
@@ -644,6 +775,7 @@ void MainWindow::setupUi()
     connect(m_analyzeButton, SIGNAL(clicked()), this, SLOT(startAnalysis()));
     connect(m_benchmarkButton, SIGNAL(clicked()), this, SLOT(runBenchmark()));
     connect(exportCsvButton, SIGNAL(clicked()), this, SLOT(exportFrameCsv()));
+    connect(exportReportButton, SIGNAL(clicked()), this, SLOT(exportAnalysisReport()));
     connect(reanalyzeButton, SIGNAL(clicked()), this, SLOT(startAnalysis()));
     connect(m_openLogButton, SIGNAL(clicked()), this, SLOT(openLogFile()));
     connect(m_timelineView, SIGNAL(frameSelected(int)), this, SLOT(onFrameSelected(int)));

@@ -292,3 +292,14 @@
 ### Impact (F-027)
 
 1. Users can now post-process frame and GOP data in spreadsheet or scripting workflows.
+
+### F-028 Analysis report export (txt / html)
+
+1. Added toolbar action `Export Report...` in the main window.
+2. Users can choose `.txt` (plain text) or `.html` (styled HTML) format via file save dialog.
+3. Report includes: video source path, total frames, I/P/B frame counts and ratios, average bitrate, total GOP count, average/min/max GOP size, and export timestamp.
+4. Default output filename: `<video_stem>_report.txt` or `<video_stem>_report.html`.
+
+### Impact (F-028)
+
+1. Users can generate standalone analysis reports for archiving or sharing without extra tooling.

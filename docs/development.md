@@ -158,6 +158,14 @@ Use this checklist when validating overwrite upgrade installation behavior.
 2. Frame CSV exports columns: `index, pts_time, type, isKey, gopIndex, indexInGop, durationTime, pktSize`.
 3. After frame export, UI prompts whether to export GOP summary CSV.
 
+## Analysis Report Export Feature Notes
+
+1. Use toolbar action `Export Report...` after analysis completes.
+2. File dialog filter shows `Text Report (*.txt);;HTML Report (*.html)` — selected extension determines format.
+3. TXT format writes plain-text sections; HTML format embeds inline CSS for readable browser rendering.
+4. Report sections: Source Info, Frame Statistics (counts + ratios), GOP Statistics (count + avg/min/max size).
+5. Timestamp line records the export time for auditability.
+
 ## Benchmark Outputs
 
 1. In-app `Run Benchmark` appends comparison rows to `logs/benchmark/benchmark_comparison.tsv`.

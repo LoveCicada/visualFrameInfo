@@ -37,6 +37,7 @@ private slots:
     void startAnalysis();
     void runBenchmark();
     void exportFrameCsv();
+    void exportAnalysisReport();
     void openLogFile();
     void onFrameSelected(int frameIndex);
     void jumpToFrame();
