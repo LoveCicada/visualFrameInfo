@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
+#include <QDialog>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
@@ -12,10 +13,12 @@
 #include <QFormLayout>
 #include <QFutureWatcher>
 #include <QGroupBox>
+#include <QHeaderView>
 #include <QPointer>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QMenuBar>
 #include <QProgressBar>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -24,9 +27,12 @@
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QTableWidget>
 #include <QTextStream>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QDialogButtonBox>
+#include <QPushButton>
 #include <QMenu>
 #include <QMimeData>
 #include <QSettings>
@@ -79,12 +85,27 @@ struct BenchmarkTaskResult {
     QString errorMessage;
 };
 
+struct BatchTaskResult {
+    QVector<AnalysisSummary> summaries;
+    QVector<QString> errors;
+};
+
 struct FrameCaptureResult {
     bool ok = false;
     QString outputPath;
     QString errorMessage;
     int requestSeq = 0;
 };
+
+QString csvEscape(const QString &value)
+{
+    QString escaped = value;
+    escaped.replace('"', "\"\"");
+    if (escaped.contains(',') || escaped.contains('"') || escaped.contains('\n') || escaped.contains('\r')) {
+        escaped = '"' + escaped + '"';
+    }
+    return escaped;
+}
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -242,6 +263,128 @@ void MainWindow::startAnalysis()
     }));
 }
 
+void MainWindow::startBatchAnalysis()
+{
+    if (m_analysisInProgress) {
+        return;
+    }
+
+    const QStringList paths = QFileDialog::getOpenFileNames(
+        this,
+        "Select video files for batch analysis",
+        QString(),
+        "Videos (*.mp4 *.mov *.mkv *.avi *.mxf);;All files (*.*)");
+    if (paths.isEmpty()) {
+        return;
+    }
+
+    m_analysisInProgress = true;
+    m_batchSummaries.clear();
+    m_batchErrors.clear();
+
+    m_analyzeButton->setEnabled(false);
+    m_benchmarkButton->setEnabled(false);
+    m_openAnalysisLogButton->setEnabled(false);
+    m_openLogButton->setEnabled(false);
+
+    m_statusLabel->setText(QString("Batch analyzing %1 file(s)...").arg(paths.size()));
+    statusBar()->showMessage(m_statusLabel->text());
+    if (m_progressBar) {
+        m_progressBar->setVisible(true);
+        m_progressBar->setRange(0, 100);
+        m_progressBar->setValue(0);
+    }
+
+    auto *watcher = new QFutureWatcher<BatchTaskResult>(this);
+    connect(watcher, &QFutureWatcher<BatchTaskResult>::finished, this, [this, watcher]() {
+        const BatchTaskResult result = watcher->result();
+        watcher->deleteLater();
+
+        m_analysisInProgress = false;
+        m_analyzeButton->setEnabled(true);
+        m_benchmarkButton->setEnabled(true);
+        m_openAnalysisLogButton->setEnabled(true);
+        m_openLogButton->setEnabled(!m_logPath.isEmpty());
+
+        if (m_progressBar) {
+            m_progressBar->setValue(100);
+            m_progressBar->setVisible(false);
+        }
+
+        m_batchSummaries = result.summaries;
+        m_batchErrors = result.errors;
+
+        int successCount = 0;
+        for (const QString &err : m_batchErrors) {
+            if (err.isEmpty()) {
+                ++successCount;
+            }
+        }
+
+        m_statusLabel->setText(QString("Batch done: %1/%2 success")
+                                   .arg(successCount)
+                                   .arg(m_batchSummaries.size()));
+        statusBar()->showMessage(m_statusLabel->text(), 5000);
+        showBatchSummaryDialog();
+    });
+
+    QPointer<MainWindow> weakSelf = this;
+    watcher->setFuture(QtConcurrent::run([paths, weakSelf]() {
+        BatchTaskResult result;
+        result.summaries.reserve(paths.size());
+        result.errors.reserve(paths.size());
+
+        const int total = qMax(1, paths.size());
+        for (int i = 0; i < paths.size(); ++i) {
+            const QString path = paths.at(i);
+            AnalysisSummary summary;
+            summary.filePath = path;
+
+            auto progressCallback = [weakSelf, i, total](int pct) {
+                const int boundedPct = qBound(0, pct, 100);
+                const int overall = qBound(0, (i * 100 + boundedPct) / total, 100);
+                QMetaObject::invokeMethod(weakSelf, [weakSelf, overall]() {
+                    if (weakSelf && weakSelf->m_progressBar) {
+                        weakSelf->m_progressBar->setValue(overall);
+                    }
+                });
+            };
+
+            QString runError;
+            QString logPath;
+            if (!FfmpegRunner::runShowInfo(path, logPath, runError, progressCallback)) {
+                summary.logPath = logPath;
+                result.summaries.push_back(summary);
+                result.errors.push_back(runError);
+                continue;
+            }
+
+            QVector<FrameInfo> frames;
+            QString parseError;
+            if (!ShowInfoParser::parseFile(logPath, frames, parseError)) {
+                summary.logPath = logPath;
+                result.summaries.push_back(summary);
+                result.errors.push_back(parseError);
+                continue;
+            }
+
+            QVector<GopSegment> gops = ShowInfoParser::buildGops(frames);
+            summary = ShowInfoParser::buildSummary(path, logPath, frames, gops);
+
+            result.summaries.push_back(summary);
+            result.errors.push_back(QString());
+
+            QMetaObject::invokeMethod(weakSelf, [weakSelf, i, total]() {
+                if (weakSelf && weakSelf->m_progressBar) {
+                    weakSelf->m_progressBar->setValue(qBound(0, ((i + 1) * 100) / total, 100));
+                }
+            });
+        }
+
+        return result;
+    }));
+}
+
 void MainWindow::runBenchmark()
 {
     const QString path = m_videoPathEdit->text().trimmed();
@@ -309,6 +452,126 @@ void MainWindow::runBenchmark()
         }
         return result;
     }));
+}
+
+void MainWindow::showBatchSummaryDialog()
+{
+    if (m_batchSummaries.isEmpty()) {
+        QMessageBox::information(this, "Batch Analysis", "No batch analysis result available.");
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle("Batch Analysis Summary");
+    dialog.resize(1100, 520);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *table = new QTableWidget(m_batchSummaries.size(), 12, &dialog);
+    table->setHorizontalHeaderLabels({
+        "Status", "File", "Codec", "Resolution", "FPS", "Duration(s)",
+        "Bitrate(kbps)", "Frames", "GOPs", "Color Space", "Bit Depth", "Pixel Format"
+    });
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setSelectionMode(QAbstractItemView::SingleSelection);
+    table->verticalHeader()->setVisible(false);
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setStretchLastSection(true);
+
+    for (int i = 0; i < m_batchSummaries.size(); ++i) {
+        const AnalysisSummary &s = m_batchSummaries.at(i);
+        const QString err = (i < m_batchErrors.size()) ? m_batchErrors.at(i) : QString();
+        const bool ok = err.isEmpty();
+
+        auto setCell = [table, i](int col, const QString &text) {
+            table->setItem(i, col, new QTableWidgetItem(text));
+        };
+
+        setCell(0, ok ? "OK" : "Failed");
+        setCell(1, QFileInfo(s.filePath).fileName().isEmpty() ? s.filePath : QFileInfo(s.filePath).fileName());
+        setCell(2, s.codec);
+        setCell(3, s.resolution);
+        setCell(4, s.fpsText);
+        setCell(5, s.durationSeconds > 0.0 ? QString::number(s.durationSeconds, 'f', 3) : "-");
+        setCell(6, s.averageBitrate > 0.0 ? QString::number(s.averageBitrate, 'f', 2) : "-");
+        setCell(7, s.totalFrames > 0 ? QString::number(s.totalFrames) : "-");
+        setCell(8, s.gopCount > 0 ? QString::number(s.gopCount) : "-");
+        setCell(9, s.colorSpace.isEmpty() ? "-" : s.colorSpace);
+        setCell(10, s.bitDepth > 0 ? QString::number(s.bitDepth) : "-");
+        setCell(11, s.pixFmt.isEmpty() ? "-" : s.pixFmt.toUpper());
+
+        if (!ok) {
+            for (int col = 0; col < table->columnCount(); ++col) {
+                QTableWidgetItem *item = table->item(i, col);
+                if (item) {
+                    item->setToolTip(err);
+                }
+            }
+        }
+    }
+
+    layout->addWidget(table);
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    auto *exportButton = buttonBox->addButton("Export CSV...", QDialogButtonBox::ActionRole);
+    connect(exportButton, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        const QString outputPath = QFileDialog::getSaveFileName(
+            &dialog,
+            "Export Batch Summary CSV",
+            QDir::current().filePath("batch_analysis_summary.csv"),
+            "CSV Files (*.csv)");
+        if (outputPath.isEmpty()) {
+            return;
+        }
+        if (exportBatchSummaryCsv(outputPath)) {
+            QMessageBox::information(&dialog, "Export complete", "Batch CSV exported:\n" + outputPath);
+        } else {
+            QMessageBox::critical(&dialog, "Export failed", "Cannot write file:\n" + outputPath);
+        }
+    });
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttonBox);
+
+    dialog.exec();
+}
+
+bool MainWindow::exportBatchSummaryCsv(const QString &outputPath) const
+{
+    QFile file(outputPath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        return false;
+    }
+
+    QTextStream out(&file);
+    out << "status,file_path,log_path,codec,resolution,fps,duration_seconds,average_bitrate_kbps,total_frames,i_count,p_count,b_count,gop_count,min_gop,max_gop,avg_gop,color_space,bit_depth,pixel_format,error\n";
+
+    for (int i = 0; i < m_batchSummaries.size(); ++i) {
+        const AnalysisSummary &s = m_batchSummaries.at(i);
+        const QString err = (i < m_batchErrors.size()) ? m_batchErrors.at(i) : QString();
+        out << csvEscape(err.isEmpty() ? "OK" : "Failed") << ','
+            << csvEscape(s.filePath) << ','
+            << csvEscape(s.logPath) << ','
+            << csvEscape(s.codec) << ','
+            << csvEscape(s.resolution) << ','
+            << csvEscape(s.fpsText) << ','
+            << QString::number(s.durationSeconds, 'f', 3) << ','
+            << QString::number(s.averageBitrate, 'f', 2) << ','
+            << s.totalFrames << ','
+            << s.iCount << ','
+            << s.pCount << ','
+            << s.bCount << ','
+            << s.gopCount << ','
+            << s.minGopSize << ','
+            << s.maxGopSize << ','
+            << QString::number(s.avgGopSize, 'f', 3) << ','
+            << csvEscape(s.colorSpace) << ','
+            << (s.bitDepth > 0 ? QString::number(s.bitDepth) : QString()) << ','
+            << csvEscape(s.pixFmt.toUpper()) << ','
+            << csvEscape(err)
+            << '\n';
+    }
+
+    return true;
 }
 
 void MainWindow::exportFrameCsv()
@@ -564,6 +827,9 @@ void MainWindow::setupUi()
 {
     setWindowTitle("Visual Frame GOP Analyzer");
     resize(1560, 920);
+
+    QMenu *toolsMenu = menuBar()->addMenu("Tools");
+    QAction *batchAnalyzeAction = toolsMenu->addAction("Batch Analyze...");
 
     auto *central = new QWidget(this);
     auto *rootLayout = new QVBoxLayout(central);
@@ -840,6 +1106,7 @@ void MainWindow::setupUi()
     statusBar()->addPermanentWidget(m_progressBar);
 
     connect(chooseButton, SIGNAL(clicked()), this, SLOT(chooseVideoFile()));
+    connect(batchAnalyzeAction, SIGNAL(triggered()), this, SLOT(startBatchAnalysis()));
     connect(m_openAnalysisLogButton, SIGNAL(clicked()), this, SLOT(chooseLogFile()));
     connect(m_analyzeButton, SIGNAL(clicked()), this, SLOT(startAnalysis()));
     connect(m_benchmarkButton, SIGNAL(clicked()), this, SLOT(runBenchmark()));

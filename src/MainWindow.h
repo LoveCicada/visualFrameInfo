@@ -38,6 +38,7 @@ private slots:
     void chooseVideoFile();
     void chooseLogFile();
     void startAnalysis();
+    void startBatchAnalysis();
     void runBenchmark();
     void exportFrameCsv();
     void exportAnalysisReport();
@@ -60,6 +61,8 @@ private:
     void addRecentFile(const QString &path);
     void rebuildRecentMenu();
     bool loadAnalysisLog(const QString &logPath, const QString &sourceVideoPath = QString());
+    void showBatchSummaryDialog();
+    bool exportBatchSummaryCsv(const QString &outputPath) const;
     int currentSelectedFrameIndex() const;
     void selectFrameByOffset(int offset);
     void selectAdjacentIFrame(int direction);
@@ -110,6 +113,8 @@ private:
     QString m_logPath;
     QVector<FrameInfo> m_frames;
     QVector<GopSegment> m_gops;
+    QVector<AnalysisSummary> m_batchSummaries;
+    QVector<QString> m_batchErrors;
     AnalysisSummary m_summary;
     double m_timelineZoom = 1.0;
     bool m_analysisInProgress = false;
