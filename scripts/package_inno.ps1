@@ -1,5 +1,6 @@
 param(
-    [string]$AppVersion
+    [string]$AppVersion,
+    [string]$OutputBaseName
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,7 +115,12 @@ $appVersion = $AppVersion
 if ([string]::IsNullOrWhiteSpace($appVersion)) {
     $appVersion = Get-ProjectVersion -RepoRoot $repoRoot
 }
-$targetInstallerName = "visualFrameInfo_setup_{0}.exe" -f $appVersion
+
+if ([string]::IsNullOrWhiteSpace($OutputBaseName)) {
+    $OutputBaseName = "visualFrameInfo_setup_{0}" -f $appVersion
+}
+
+$targetInstallerName = "{0}.exe" -f $OutputBaseName
 
 if (-not (Test-Path $sourceDir)) {
     throw "Deploy source directory does not exist: $sourceDir. Run deploy_release.ps1 first."
@@ -141,7 +147,7 @@ $iscc = Get-InnoCompilerPath
 Write-Host "Using ISCC: $iscc"
 Write-Host "Using app version: $appVersion"
 
-& $iscc "/DSourceDir=$sourceDir" "/DOutputDir=$outDir" "/DMyAppVersion=$appVersion" $scriptPath
+& $iscc "/DSourceDir=$sourceDir" "/DOutputDir=$outDir" "/DMyAppVersion=$appVersion" "/DMyOutputBaseFilename=$OutputBaseName" $scriptPath
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup build failed with exit code $LASTEXITCODE"
 }

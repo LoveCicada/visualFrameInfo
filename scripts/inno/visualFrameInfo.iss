@@ -13,6 +13,10 @@
   #define OutputDir "..\\..\\install\\installer"
 #endif
 
+#ifndef MyOutputBaseFilename
+  #define MyOutputBaseFilename "visualFrameInfo_setup_{#MyAppVersion}"
+#endif
+
 [Setup]
 AppId={{D4A7D90A-3A90-4D38-BD71-84FC9D8E08CC}}
 AppName={#MyAppName}
@@ -22,7 +26,7 @@ DefaultDirName={autopf}\\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=visualFrameInfo_setup_{#MyAppVersion}
+OutputBaseFilename={#MyOutputBaseFilename}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
