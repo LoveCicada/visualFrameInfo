@@ -1134,7 +1134,8 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event)
             static const QStringList videoExts = {"mp4", "mov", "mkv", "avi", "mxf"};
             static const QStringList logExts   = {"log", "txt"};
             if (videoExts.contains(ext) || logExts.contains(ext)) {
-                event->acceptProposedAction();
+                event->setDropAction(Qt::LinkAction);
+                event->accept();
                 return;
             }
         }
@@ -1163,7 +1164,8 @@ void MainWindow::dropEvent(QDropEvent *event)
     } else {
         loadAnalysisLog(path);
     }
-    event->acceptProposedAction();
+    event->setDropAction(Qt::LinkAction);
+    event->accept();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
