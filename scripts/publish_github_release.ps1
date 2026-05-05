@@ -86,8 +86,16 @@ try {
         git rev-parse -q --verify "refs/tags/$Tag" *> $null
         $tagExists = ($LASTEXITCODE -eq 0)
 
-        & $ghPath release view $Tag --repo $Repo *> $null
-        $releaseExists = ($LASTEXITCODE -eq 0)
+        $releaseExists = $false
+        $previousErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            & $ghPath release view $Tag --repo $Repo 1>$null 2>$null
+            $releaseExists = ($LASTEXITCODE -eq 0)
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorAction
+        }
 
         Write-Host 'Dry run check passed.'
         Write-Host "Repo: $Repo"
@@ -110,8 +118,18 @@ try {
         throw "Failed to push tag: $Tag"
     }
 
-    & $ghPath release view $Tag --repo $Repo *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $releaseExists = $false
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $ghPath release view $Tag --repo $Repo 1>$null 2>$null
+        $releaseExists = ($LASTEXITCODE -eq 0)
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+
+    if ($releaseExists) {
         & $ghPath release upload $Tag $AssetPath --clobber --repo $Repo
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to upload asset to existing release: $Tag"
