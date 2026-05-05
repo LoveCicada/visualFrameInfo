@@ -7,7 +7,6 @@
 #include <QLabel>
 #include <QKeyEvent>
 #include <QMainWindow>
-#include <QToolButton>
 #include <QPushButton>
 #include <QVector>
 
@@ -94,7 +93,7 @@ private:
     QLabel *m_logPathValue = nullptr;
     QLabel *m_bitrateValue = nullptr;
 
-    QToolButton *m_recentButton = nullptr;
+    QComboBox *m_recentFilesCombo = nullptr;
 
     QScrollArea *m_timelineScrollArea = nullptr;
     TimelineView *m_timelineView = nullptr;

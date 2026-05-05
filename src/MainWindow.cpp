@@ -572,11 +572,11 @@ void MainWindow::setupUi()
     auto *topRowPrimary = new QHBoxLayout();
     auto *topRowSecondary = new QHBoxLayout();
     auto *chooseButton = new QPushButton("Select Video", this);
-    m_recentButton = new QToolButton(this);
-    m_recentButton->setText("v");
-    m_recentButton->setToolTip("Recent files");
-    m_recentButton->setPopupMode(QToolButton::InstantPopup);
-    m_recentButton->setMenu(new QMenu(m_recentButton));
+    m_recentFilesCombo = new QComboBox(this);
+    m_recentFilesCombo->setMinimumWidth(340);
+    m_recentFilesCombo->setMaximumWidth(520);
+    m_recentFilesCombo->setSizeAdjustPolicy(QComboBox::AdjustToContentsOnFirstShow);
+    m_recentFilesCombo->setToolTip("Recent files");
     rebuildRecentMenu();
     m_videoPathEdit = new QLineEdit(this);
     m_analyzeButton = new QPushButton("Start Analyze", this);
@@ -600,6 +600,7 @@ void MainWindow::setupUi()
     configureActionButton(exportReportButton);
     configureActionButton(reanalyzeButton);
     configureActionButton(m_openLogButton);
+    m_recentFilesCombo->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     m_videoPathEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_videoPathEdit->setClearButtonEnabled(true);
     m_videoPathEdit->setToolTip("Input video path. Full path is shown on hover.");
@@ -607,9 +608,31 @@ void MainWindow::setupUi()
 
     m_openLogButton->setEnabled(false);
 
+    connect(m_recentFilesCombo,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) {
+        if (index < 0) {
+            return;
+        }
+        const QString path = m_recentFilesCombo->itemData(index).toString();
+        if (path.isEmpty()) {
+            return;
+        }
+        if (path == QStringLiteral("__clear__")) {
+            QSettings().remove(QStringLiteral("recentFiles"));
+            rebuildRecentMenu();
+            return;
+        }
+        m_videoPath = path;
+        m_videoPathEdit->setText(path);
+        m_videoPathEdit->setToolTip(path);
+        updateSourceInfo();
+    });
+
     // Keep file selection on the first row, and group analysis actions on the second row.
     topRowPrimary->addWidget(chooseButton);
-    topRowPrimary->addWidget(m_recentButton);
+    topRowPrimary->addWidget(m_recentFilesCombo);
     topRowPrimary->addWidget(m_videoPathEdit, 1);
 
     topRowSecondary->addWidget(m_analyzeButton);
@@ -1158,32 +1181,29 @@ void MainWindow::addRecentFile(const QString &path)
 
 void MainWindow::rebuildRecentMenu()
 {
-    if (!m_recentButton) {
+    if (!m_recentFilesCombo) {
         return;
     }
-    QMenu *menu = m_recentButton->menu();
-    menu->clear();
+    const bool oldSignalsBlocked = m_recentFilesCombo->blockSignals(true);
+    m_recentFilesCombo->clear();
 
     QSettings settings;
     const QStringList files = settings.value(kRecentKey).toStringList();
     if (files.isEmpty()) {
-        auto *empty = menu->addAction("(No recent files)");
-        empty->setEnabled(false);
+        m_recentFilesCombo->addItem("(No recent files)", QString());
+        m_recentFilesCombo->setCurrentIndex(0);
+        m_recentFilesCombo->blockSignals(oldSignalsBlocked);
         return;
     }
+
     for (const QString &file : files) {
-        menu->addAction(QFileInfo(file).fileName(), this, [this, file]() {
-            m_videoPath = file;
-            m_videoPathEdit->setText(file);
-            m_videoPathEdit->setToolTip(file);
-            updateSourceInfo();
-        })->setToolTip(file);
+        m_recentFilesCombo->addItem(file, file);
+        m_recentFilesCombo->setItemData(m_recentFilesCombo->count() - 1, file, Qt::ToolTipRole);
     }
-    menu->addSeparator();
-    menu->addAction("Clear recent files", this, [this]() {
-        QSettings().remove(kRecentKey);
-        rebuildRecentMenu();
-    });
+    m_recentFilesCombo->insertSeparator(m_recentFilesCombo->count());
+    m_recentFilesCombo->addItem("Clear recent files", QStringLiteral("__clear__"));
+    m_recentFilesCombo->setCurrentIndex(0);
+    m_recentFilesCombo->blockSignals(oldSignalsBlocked);
 }
 
 // ── Drag and drop ────────────────────────────────────────────────────────────
