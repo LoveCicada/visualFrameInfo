@@ -1,6 +1,7 @@
 param(
     [string]$AppVersion,
-    [string]$OutputBaseName
+    [string]$OutputBaseName,
+    [string]$OutputDir
 )
 
 $ErrorActionPreference = 'Stop'
@@ -109,7 +110,11 @@ function Get-PreviousInstaller {
 
 $repoRoot = Get-RepoRoot
 $sourceDir = Join-Path $repoRoot 'install/Release'
-$outDir = Join-Path $repoRoot 'install/installer'
+$outDir = $OutputDir
+if ([string]::IsNullOrWhiteSpace($outDir)) {
+    $outDir = Join-Path $repoRoot 'install/installer'
+}
+$outDir = (Resolve-Path (New-Item -Path $outDir -ItemType Directory -Force)).Path
 $scriptPath = Join-Path $repoRoot 'scripts/inno/visualFrameInfo.iss'
 $appVersion = $AppVersion
 if ([string]::IsNullOrWhiteSpace($appVersion)) {
@@ -133,8 +138,6 @@ if (-not (Test-Path (Join-Path $sourceDir 'visualFrameInfo.exe'))) {
 if (-not (Test-Path $scriptPath)) {
     throw "Inno Setup script not found: $scriptPath"
 }
-
-New-Item -Path $outDir -ItemType Directory -Force | Out-Null
 
 $previousInstaller = Get-PreviousInstaller -OutputDir $outDir -CurrentVersion $appVersion
 if ($null -ne $previousInstaller) {
